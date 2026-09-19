@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="大学英语四级核心词汇 1000 的网页浏览版，支持分 List 浏览、搜索、词性筛选和释义遮蔽。"
+    />
+    <title>大学英语四级核心词汇 1000</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <span>CET</span>
+            <strong>4</strong>
+          </div>
+          <div class="brand-copy">
+            <h1>大学英语四级核心词汇</h1>
+            <p>1000 词 · 10 个 List</p>
+          </div>
+        </div>
+        <div class="header-summary" aria-label="词汇数据概况">
+          <span><strong>1000</strong> 核心词</span>
+          <span><strong>10</strong> 个 List</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="app-shell">
+      <aside class="list-sidebar" aria-label="词汇列表">
+        <div class="sidebar-heading">
+          <span>按 List 浏览</span>
+          <button class="text-button" id="resetFilters" type="button">重置</button>
+        </div>
+        <nav class="list-nav" id="listNav"></nav>
+        <div class="sidebar-note">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M12 3v18M3 12h18" />
+          </svg>
+          <span>点击星标可建立自己的生词本，数据只保存在本机浏览器中。</span>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <section class="toolbar" aria-label="搜索和筛选">
+          <label class="search-field" for="searchInput">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.3-4.3"></path>
+            </svg>
+            <input
+              id="searchInput"
+              type="search"
+              autocomplete="off"
+              placeholder="搜索英文单词或中文释义"
+            />
+            <button
+              class="search-clear"
+              id="clearSearch"
+              type="button"
+              aria-label="清除搜索"
+              title="清除搜索"
+              hidden
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </label>
+
+          <label class="select-field">
+            <span class="sr-only">按词性筛选</span>
+            <select id="partFilter" aria-label="按词性筛选"></select>
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </label>
+
+          <button
+            class="toolbar-button"
+            id="favoriteFilter"
+            type="button"
+            aria-pressed="false"
+            title="只看收藏"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path
+                d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+              />
+            </svg>
+            <span>收藏</span>
+            <span class="count-badge" id="favoriteCount">0</span>
+          </button>
+
+          <button
+            class="toolbar-button"
+            id="meaningToggle"
+            type="button"
+            aria-pressed="false"
+            title="隐藏或显示中文释义"
+          >
+            <svg class="icon-eye" aria-hidden="true" viewBox="0 0 24 24">
+              <path
+                d="M2.06 12.35a1 1 0 0 1 0-.7C3.73 7.13 7.52 4 12 4s8.27 3.13 9.94 7.65a1 1 0 0 1 0 .7C20.27 16.87 16.48 20 12 20s-8.27-3.13-9.94-7.65Z"
+              />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <svg class="icon-eye-off" aria-hidden="true" viewBox="0 0 24 24">
+              <path d="m3 3 18 18" />
+              <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+              <path
+                d="M9.9 4.24A10.8 10.8 0 0 1 12 4c4.48 0 8.27 3.13 9.94 7.65a1 1 0 0 1 0 .7 11.7 11.7 0 0 1-2.1 3.58M6.6 6.6a11.8 11.8 0 0 0-4.54 5.05 1 1 0 0 0 0 .7C3.73 16.87 7.52 20 12 20c1.08 0 2.12-.18 3.08-.51"
+              />
+            </svg>
+            <span>遮住释义</span>
+          </button>
+        </section>
+
+        <section class="content-heading" aria-live="polite">
+          <div>
+            <p class="eyebrow" id="viewEyebrow">全部词汇</p>
+            <h2 id="viewTitle">大学英语四级核心词汇</h2>
+          </div>
+          <p class="result-count" id="resultCount">正在载入...</p>
+        </section>
+
+        <section class="word-panel" aria-label="单词列表">
+          <div class="word-list-head" aria-hidden="true">
+            <span>序号</span>
+            <span>单词</span>
+            <span>词性</span>
+            <span>释义</span>
+            <span></span>
+          </div>
+          <ol class="word-list" id="wordList"></ol>
+          <div class="empty-state" id="emptyState" hidden>
+            <div class="empty-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.3-4.3"></path>
+              </svg>
+            </div>
+            <h3>没有找到匹配的词汇</h3>
+            <p>可以尝试更短的关键词，或清除词性和收藏筛选。</p>
+            <button class="primary-button" id="emptyReset" type="button">清除筛选</button>
+          </div>
+          <div class="load-more-wrap" id="loadMoreWrap" hidden>
+            <button class="load-more" id="loadMore" type="button">显示更多词汇</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <noscript>
+      <div class="noscript-message">此页面需要启用 JavaScript 才能浏览词汇。</div>
+    </noscript>
+
+    <script src="./words.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
