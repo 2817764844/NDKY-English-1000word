@@ -37,6 +37,7 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
+  padding-bottom: 78px;
   color: var(--ink);
   background:
     linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.25)),
@@ -300,7 +301,7 @@ svg {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(250px, 1fr) 160px auto auto;
+  grid-template-columns: minmax(250px, 1fr) 160px auto;
   gap: 10px;
   padding: 10px;
   border: 1px solid var(--border);
@@ -441,12 +442,12 @@ svg {
   stroke: var(--gold);
 }
 
-#meaningToggle .icon-eye-off,
-#meaningToggle[aria-pressed="true"] .icon-eye {
+.study-toggle .icon-eye-off,
+.study-toggle[aria-pressed="true"] .icon-eye {
   display: none;
 }
 
-#meaningToggle[aria-pressed="true"] .icon-eye-off {
+.study-toggle[aria-pressed="true"] .icon-eye-off {
   display: block;
 }
 
@@ -559,6 +560,7 @@ svg {
 }
 
 .word-name {
+  position: relative;
   overflow-wrap: anywhere;
   padding-right: 12px;
   color: #173f38;
@@ -566,6 +568,23 @@ svg {
   font-size: 16.5px;
   font-weight: 700;
   line-height: 1.25;
+}
+
+.word-text {
+  transition:
+    filter 160ms ease,
+    opacity 160ms ease;
+}
+
+.word-reveal-note {
+  display: none;
+  color: var(--warm);
+  font-family:
+    "Microsoft YaHei",
+    "PingFang SC",
+    sans-serif;
+  font-size: 11.5px;
+  font-weight: 700;
 }
 
 .part-badge {
@@ -624,8 +643,22 @@ svg {
   font-weight: 700;
 }
 
+.word-row.word-hidden,
 .word-row.meaning-hidden {
   cursor: pointer;
+}
+
+.word-row.word-hidden .word-text {
+  filter: blur(7px);
+  opacity: 0.38;
+  user-select: none;
+}
+
+.word-row.word-hidden .word-reveal-note {
+  position: absolute;
+  inset: 50% auto auto 0;
+  display: block;
+  transform: translateY(-50%);
 }
 
 .word-row.meaning-hidden .meaning-text {
@@ -641,13 +674,15 @@ svg {
   transform: translateY(-50%);
 }
 
-.word-row.meaning-hidden.meaning-revealed .meaning-text {
+.word-row.content-revealed .word-text,
+.word-row.content-revealed .meaning-text {
   filter: none;
   opacity: 1;
   user-select: auto;
 }
 
-.word-row.meaning-hidden.meaning-revealed .meaning-reveal-note {
+.word-row.content-revealed .word-reveal-note,
+.word-row.content-revealed .meaning-reveal-note {
   display: none;
 }
 
@@ -742,6 +777,59 @@ svg {
   background: #fafcfb;
 }
 
+.study-controls {
+  position: fixed;
+  right: 24px;
+  bottom: 20px;
+  z-index: 40;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 32px rgba(26, 50, 41, 0.18);
+  backdrop-filter: blur(12px);
+}
+
+.study-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 118px;
+  height: 40px;
+  padding: 0 13px;
+  gap: 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  color: var(--muted-strong);
+  background: #ffffff;
+  font-size: 12.5px;
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    color 140ms ease,
+    background 140ms ease;
+}
+
+.study-toggle:hover {
+  border-color: #9db8ae;
+  color: var(--accent-dark);
+  background: #f8fbfa;
+}
+
+.study-toggle[aria-pressed="true"] {
+  border-color: #df9a78;
+  color: #8c3e1d;
+  background: var(--warm-soft);
+}
+
+.study-toggle svg {
+  width: 15px;
+  height: 15px;
+}
+
 .noscript-message {
   position: fixed;
   right: 20px;
@@ -758,10 +846,6 @@ svg {
 @media (max-width: 980px) {
   .toolbar {
     grid-template-columns: minmax(230px, 1fr) 150px auto;
-  }
-
-  #meaningToggle {
-    grid-column: 1 / -1;
   }
 
   .word-list-head,
@@ -857,8 +941,7 @@ svg {
     min-width: 0;
   }
 
-  #favoriteFilter,
-  #meaningToggle {
+  #favoriteFilter {
     grid-column: auto;
   }
 
@@ -913,6 +996,26 @@ svg {
   .favorite-button {
     grid-area: favorite;
   }
+
+  .study-controls {
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 9px 10px calc(9px + env(safe-area-inset-bottom));
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .study-toggle {
+    min-width: 0;
+    width: 100%;
+    height: 42px;
+  }
 }
 
 @media (max-width: 460px) {
@@ -940,6 +1043,10 @@ svg {
 
   .toolbar-button {
     padding: 0 9px;
+  }
+
+  #favoriteFilter {
+    grid-column: 1 / -1;
   }
 
   .result-count {

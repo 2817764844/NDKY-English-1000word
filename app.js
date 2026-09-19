@@ -66,6 +66,7 @@
     query: "",
     part: "all",
     favoritesOnly: false,
+    hideWord: false,
     hideMeaning: false,
     visibleLimit: initialLimit,
   };
@@ -77,6 +78,7 @@
     partFilter: document.querySelector("#partFilter"),
     favoriteFilter: document.querySelector("#favoriteFilter"),
     favoriteCount: document.querySelector("#favoriteCount"),
+    wordToggle: document.querySelector("#wordToggle"),
     meaningToggle: document.querySelector("#meaningToggle"),
     resetFilters: document.querySelector("#resetFilters"),
     viewEyebrow: document.querySelector("#viewEyebrow"),
@@ -201,16 +203,23 @@
     const order = state.selectedList === "all" ? word.globalNumber : word.number;
     const startsNewList =
       state.selectedList === "all" && previousWord && word.list !== previousWord.list;
+    const wordHidden = state.hideWord;
     const meaningHidden = state.hideMeaning;
+    const contentHidden = wordHidden || meaningHidden;
 
     const row = document.createElement("li");
     row.className = "word-row";
     row.dataset.wordId = word.id;
     row.classList.toggle("is-new-list", Boolean(startsNewList));
+    row.classList.toggle("word-hidden", wordHidden);
     row.classList.toggle("meaning-hidden", meaningHidden);
+    row.classList.toggle("content-hidden", contentHidden);
     row.innerHTML = `
       <span class="word-order">${order}</span>
-      <span class="word-name">${escapeHtml(word.word)}</span>
+      <span class="word-name">
+        <span class="word-text">${escapeHtml(word.word)}</span>
+        <span class="word-reveal-note">点击查看单词</span>
+      </span>
       <span class="part-badge ${partClass(word.partKeys)}">${escapeHtml(word.part)}</span>
       <span class="meaning">
         <span class="meaning-text">${escapeHtml(word.meaning)}</span>
@@ -282,6 +291,8 @@
       "aria-pressed",
       state.favoritesOnly ? "true" : "false",
     );
+    elements.wordToggle.setAttribute("aria-pressed", state.hideWord ? "true" : "false");
+    elements.wordToggle.title = state.hideWord ? "显示英文单词" : "隐藏英文单词";
     elements.meaningToggle.setAttribute(
       "aria-pressed",
       state.hideMeaning ? "true" : "false",
@@ -298,6 +309,7 @@
     state.query = "";
     state.part = "all";
     state.favoritesOnly = false;
+    state.hideWord = false;
     state.hideMeaning = false;
     state.visibleLimit = initialLimit;
     elements.searchInput.value = "";
@@ -345,6 +357,11 @@
     render();
   });
 
+  elements.wordToggle.addEventListener("click", () => {
+    state.hideWord = !state.hideWord;
+    render();
+  });
+
   elements.wordList.addEventListener("click", (event) => {
     const button = event.target.closest('[data-action="favorite"]');
     const row = event.target.closest(".word-row");
@@ -367,8 +384,8 @@
       return;
     }
 
-    if (state.hideMeaning) {
-      row.classList.toggle("meaning-revealed");
+    if (state.hideWord || state.hideMeaning) {
+      row.classList.toggle("content-revealed");
     }
   });
 
