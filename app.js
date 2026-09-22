@@ -17,6 +17,17 @@
   };
   const initialLimit = 120;
   const loadStep = 120;
+  // 发音音频使用有道词典的公开音频接口，type=2 为美音，type=1 为英音。
+  const audioBase = "https://dict.youdao.com/dictvoice?audio=";
+  const accentOptions = {
+    us: { type: 2, lang: "en-US", label: "美音 US", name: "美式发音" },
+    uk: { type: 1, lang: "en-GB", label: "英音 UK", name: "英式发音" },
+  };
+  const speechFallbackTimeout = 2000;
+  const maxCachedAudio = 40;
+  const favoriteStorageKey = "cet4-favorites";
+  const accentStorageKey = "cet4-accent";
+  const autoSpeakStorageKey = "cet4-auto-speak";
 
   function normalizePartKeys(part) {
     const keys = new Set();
@@ -69,6 +80,8 @@
     hideWord: false,
     hideMeaning: false,
     visibleLimit: initialLimit,
+    accent: loadAccent(),
+    autoSpeak: loadAutoSpeak(),
   };
 
   const elements = {
@@ -80,6 +93,9 @@
     favoriteCount: document.querySelector("#favoriteCount"),
     wordToggle: document.querySelector("#wordToggle"),
     meaningToggle: document.querySelector("#meaningToggle"),
+    accentToggle: document.querySelector("#accentToggle"),
+    accentLabel: document.querySelector("#accentLabel"),
+    autoSpeakToggle: document.querySelector("#autoSpeakToggle"),
     resetFilters: document.querySelector("#resetFilters"),
     viewEyebrow: document.querySelector("#viewEyebrow"),
     viewTitle: document.querySelector("#viewTitle"),
@@ -89,14 +105,39 @@
     emptyReset: document.querySelector("#emptyReset"),
     loadMoreWrap: document.querySelector("#loadMoreWrap"),
     loadMore: document.querySelector("#loadMore"),
+    toast: document.querySelector("#toast"),
   };
 
   const favorites = loadFavorites();
   const fragment = document.createDocumentFragment();
 
+  function readStorage(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+
+  function writeStorage(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // Browsing remains available if storage is disabled.
+    }
+  }
+
+  function loadAccent() {
+    return readStorage(accentStorageKey) === "uk" ? "uk" : "us";
+  }
+
+  function loadAutoSpeak() {
+    return readStorage(autoSpeakStorageKey) === "true";
+  }
+
   function loadFavorites() {
     try {
-      const stored = JSON.parse(localStorage.getItem("cet4-favorites") || "[]");
+      const stored = JSON.parse(readStorage(favoriteStorageKey) || "[]");
       return new Set(Array.isArray(stored) ? stored : []);
     } catch {
       return new Set();
@@ -104,11 +145,7 @@
   }
 
   function saveFavorites() {
-    try {
-      localStorage.setItem("cet4-favorites", JSON.stringify([...favorites]));
-    } catch {
-      // Browsing remains available if storage is disabled.
-    }
+    writeStorage(favoriteStorageKey, JSON.stringify([...favorites]));
   }
 
   function escapeHtml(value) {
@@ -118,6 +155,158 @@
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
+  }
+
+  function buildFailureHint() {
+    if (location.protocol === "file:") {
+      return "直接双击打开的本地文件可能被浏览器限制联网，建议改用本地服务器：python -m http.server 8000 --directory 网页版单词表";
+    }
+    if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+      return "本机服务器可能没有联网，请检查网络后重试。";
+    }
+    if (/(^|\.)github\.io$/.test(location.hostname)) {
+      return "GitHub Pages 可以正常联网，请检查当前网络连接或稍后重试。";
+    }
+    return "请检查网络连接或稍后重试。";
+  }
+
+  const failureHint = buildFailureHint();
+
+  let toastTimer = 0;
+
+  function showToast(message) {
+    if (!elements.toast) {
+      return;
+    }
+    elements.toast.textContent = message;
+    elements.toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      elements.toast.hidden = true;
+    }, 6000);
+  }
+
+  const audioCache = new Map();
+
+  function audioUrl(word, accent) {
+    return `${audioBase}${encodeURIComponent(word)}&type=${accentOptions[accent].type}`;
+  }
+
+  function buildAudio(word, accent) {
+    const key = `${word}|${accent}`;
+    const cached = audioCache.get(key);
+    if (cached) {
+      audioCache.delete(key);
+      audioCache.set(key, cached);
+      return cached;
+    }
+    const element = new Audio();
+    element.preload = "auto";
+    element.src = audioUrl(word, accent);
+    audioCache.set(key, element);
+    while (audioCache.size > maxCachedAudio) {
+      const oldestKey = audioCache.keys().next().value;
+      const oldest = audioCache.get(oldestKey);
+      audioCache.delete(oldestKey);
+      if (oldest) {
+        oldest.removeAttribute("src");
+      }
+    }
+    return element;
+  }
+
+  function preloadWord(word, accent) {
+    if (!word) {
+      return;
+    }
+    try {
+      buildAudio(word, accent);
+    } catch {
+      // 预加载失败不影响后续正常播放。
+    }
+  }
+
+  function playWithSystemVoice(word, accent) {
+    const synth = window.speechSynthesis;
+    if (!synth || typeof SpeechSynthesisUtterance !== "function") {
+      return false;
+    }
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.lang = accentOptions[accent].lang;
+    utterance.rate = 0.92;
+    synth.cancel();
+    synth.speak(utterance);
+    return true;
+  }
+
+  let lastSpokenWord = "";
+  let lastSpokenAt = 0;
+
+  async function playWord(word, accent) {
+    const now = Date.now();
+    // 避免同一次点击同时触发按钮与整行的朗读。
+    if (word === lastSpokenWord && now - lastSpokenAt < 300) {
+      return false;
+    }
+    lastSpokenWord = word;
+    lastSpokenAt = now;
+
+    let element;
+    try {
+      element = buildAudio(word, accent);
+      element.currentTime = 0;
+      const playing = element.play();
+      if (playing && typeof playing.then === "function") {
+        await playing;
+      }
+      return true;
+    } catch {
+      if (playWithSystemVoice(word, accent)) {
+        showToast(`在线真人发音暂不可用，已改用系统语音朗读「${word}」。`);
+      } else {
+        showToast(
+          `「${word}」发音加载失败。${failureHint}`.trim(),
+        );
+      }
+      return false;
+    }
+  }
+
+  // 只在词条进入视口时才预取音频，避免一次请求上百个音频文件。
+  const rowObserver =
+    typeof IntersectionObserver === "function"
+      ? new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (!entry.isIntersecting) {
+                return;
+              }
+              const word = entry.target.dataset.speakWord;
+              if (word) {
+                preloadWord(word, state.accent);
+              }
+              rowObserver.unobserve(entry.target);
+            });
+          },
+          { rootMargin: "200px 0px" },
+        )
+      : null;
+
+  function observeRow(row) {
+    if (rowObserver) {
+      rowObserver.observe(row);
+    }
+  }
+
+  function stopSpeaking() {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    audioCache.forEach((element) => {
+      if (!element.paused) {
+        element.pause();
+      }
+    });
   }
 
   function partClass(partKeys) {
@@ -198,6 +387,10 @@
     });
   }
 
+  function phoneticFor(word, accent) {
+    return accent === "uk" ? word.ukphone || word.usphone || "" : word.usphone || word.ukphone || "";
+  }
+
   function renderWordRow(word, previousWord) {
     const isFavorite = favorites.has(word.id);
     const order = state.selectedList === "all" ? word.globalNumber : word.number;
@@ -206,10 +399,14 @@
     const wordHidden = state.hideWord;
     const meaningHidden = state.hideMeaning;
     const contentHidden = wordHidden || meaningHidden;
+    const accent = state.accent;
+    const accentInfo = accentOptions[accent];
+    const phonetic = phoneticFor(word, accent);
 
     const row = document.createElement("li");
     row.className = "word-row";
     row.dataset.wordId = word.id;
+    row.dataset.speakWord = word.word;
     row.classList.toggle("is-new-list", Boolean(startsNewList));
     row.classList.toggle("word-hidden", wordHidden);
     row.classList.toggle("meaning-hidden", meaningHidden);
@@ -218,12 +415,46 @@
       <span class="word-order">${order}</span>
       <span class="word-name">
         <span class="word-text">${escapeHtml(word.word)}</span>
+        <button
+          class="speak-button word-speak"
+          type="button"
+          data-action="speak"
+          aria-label="朗读 ${escapeHtml(word.word)}（${accentInfo.name}）"
+          title="朗读发音（${accentInfo.name}）"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M11 5 6 9H2v6h4l5 4V5z"></path>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+        </button>
+        <span class="phonetic-inline" lang="${accentInfo.lang}" data-phonetic>${
+          phonetic ? `/${escapeHtml(phonetic)}/` : ""
+        }</span>
         <span class="word-reveal-note">点击查看单词</span>
       </span>
+      <span class="phonetic" lang="${accentInfo.lang}" data-phonetic>${
+        phonetic ? `/${escapeHtml(phonetic)}/` : "—"
+      }</span>
       <span class="part-badge ${partClass(word.partKeys)}">${escapeHtml(word.part)}</span>
       <span class="meaning">
         <span class="meaning-text">${escapeHtml(word.meaning)}</span>
         <span class="meaning-reveal-note">点击查看释义</span>
+      </span>
+      <span class="word-audio">
+        <button
+          class="speak-button"
+          type="button"
+          data-action="speak"
+          aria-label="朗读 ${escapeHtml(word.word)}（${accentInfo.name}）"
+          title="朗读发音（${accentInfo.name}）"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M11 5 6 9H2v6h4l5 4V5z"></path>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+        </button>
       </span>
       <button
         class="favorite-button"
@@ -238,6 +469,7 @@
         </svg>
       </button>
     `;
+    observeRow(row);
     return row;
   }
 
@@ -298,6 +530,19 @@
       state.hideMeaning ? "true" : "false",
     );
     elements.meaningToggle.title = state.hideMeaning ? "显示中文释义" : "隐藏中文释义";
+    elements.accentToggle.dataset.accent = state.accent;
+    elements.accentToggle.setAttribute("aria-pressed", state.accent === "uk" ? "true" : "false");
+    elements.accentToggle.title = `当前为${accentOptions[state.accent].name}，点击切换为${
+      accentOptions[state.accent === "us" ? "uk" : "us"].name
+    }`;
+    elements.accentLabel.textContent = accentOptions[state.accent].label;
+    elements.autoSpeakToggle.setAttribute(
+      "aria-pressed",
+      state.autoSpeak ? "true" : "false",
+    );
+    elements.autoSpeakToggle.title = state.autoSpeak
+      ? "已开启：点击词条任意位置即可朗读"
+      : "开启后点击词条任意位置即可朗读";
     elements.clearSearch.hidden = !state.query;
 
     updateHeading(filteredWords.length);
@@ -321,12 +566,14 @@
     if (!button) {
       return;
     }
+    stopSpeaking();
     state.selectedList = button.dataset.list === "all" ? "all" : Number(button.dataset.list);
     state.visibleLimit = initialLimit;
     render();
   });
 
   elements.searchInput.addEventListener("input", (event) => {
+    stopSpeaking();
     state.query = event.target.value;
     state.visibleLimit = initialLimit;
     render();
@@ -362,8 +609,21 @@
     render();
   });
 
+  elements.accentToggle.addEventListener("click", () => {
+    state.accent = state.accent === "us" ? "uk" : "us";
+    writeStorage(accentStorageKey, state.accent);
+    render();
+  });
+
+  elements.autoSpeakToggle.addEventListener("click", () => {
+    state.autoSpeak = !state.autoSpeak;
+    writeStorage(autoSpeakStorageKey, String(state.autoSpeak));
+    render();
+  });
+
   elements.wordList.addEventListener("click", (event) => {
-    const button = event.target.closest('[data-action="favorite"]');
+    const speakButton = event.target.closest('[data-action="speak"]');
+    const favoriteButton = event.target.closest('[data-action="favorite"]');
     const row = event.target.closest(".word-row");
     if (!row) {
       return;
@@ -373,7 +633,12 @@
       return;
     }
 
-    if (button) {
+    if (speakButton) {
+      playWord(word.word, state.accent);
+      return;
+    }
+
+    if (favoriteButton) {
       if (favorites.has(word.id)) {
         favorites.delete(word.id);
       } else {
@@ -382,6 +647,11 @@
       saveFavorites();
       render();
       return;
+    }
+
+    // 开启「点击即读」后，点击词条任意位置都会朗读。
+    if (state.autoSpeak) {
+      playWord(word.word, state.accent);
     }
 
     if (state.hideWord || state.hideMeaning) {

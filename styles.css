@@ -19,6 +19,14 @@
   --purple-soft: #ece6f7;
   --shadow: 0 12px 30px rgba(26, 50, 41, 0.07);
   --radius: 8px;
+  /* 单词表列宽，窄屏时在媒体查询里覆写 */
+  --col-order: 68px;
+  --col-word: minmax(150px, 0.95fr);
+  --col-phonetic: minmax(112px, 0.55fr);
+  --col-part: 100px;
+  --col-meaning: minmax(220px, 2.5fr);
+  --col-audio: 46px;
+  --col-favorite: 48px;
 }
 
 * {
@@ -37,7 +45,8 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
-  padding-bottom: 78px;
+  /* 给右下角固定的发音/练习控制条留出空间（现在有两行） */
+  padding-bottom: 150px;
   color: var(--ink);
   background:
     linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.25)),
@@ -280,11 +289,14 @@ svg {
   display: flex;
   gap: 9px;
   padding: 13px 14px 15px;
-  border-top: 1px solid var(--border);
   color: var(--muted);
   background: #fafcfb;
   font-size: 11px;
   line-height: 1.55;
+}
+
+.sidebar-note + .sidebar-note {
+  border-top: 1px solid var(--border);
 }
 
 .sidebar-note svg {
@@ -293,6 +305,11 @@ svg {
   height: 15px;
   margin-top: 2px;
   color: var(--warm);
+}
+
+/* 发音提示用主题青色，与收藏提示区分 */
+.pronunciation-note svg {
+  color: var(--accent);
 }
 
 .main-content {
@@ -511,7 +528,10 @@ svg {
 .word-list-head,
 .word-row {
   display: grid;
-  grid-template-columns: 68px minmax(150px, 0.95fr) 100px minmax(260px, 2.4fr) 48px;
+  /* 序号 / 单词 / 音标 / 词性 / 释义 / 朗读 / 收藏 */
+  grid-template-columns:
+    var(--col-order) var(--col-word) var(--col-phonetic) var(--col-part)
+    var(--col-meaning) var(--col-audio) var(--col-favorite);
   align-items: center;
 }
 
@@ -574,6 +594,85 @@ svg {
   transition:
     filter 160ms ease,
     opacity 160ms ease;
+}
+
+.phonetic {
+  min-width: 0;
+  padding-right: 10px;
+  color: #5d6f68;
+  font-size: 12.5px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  transition: opacity 160ms ease;
+}
+
+/* 窄屏专用：音标换到单词下方显示，宽屏隐藏。 */
+.phonetic-inline {
+  display: none;
+}
+
+.word-audio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 单词旁的紧凑朗读按钮由下面的 .word-speak 规则统一控制显示。 */
+.word-speak {
+  margin-left: 7px;
+}
+
+.speak-button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #7e8d87;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color 140ms ease,
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+.speak-button:hover {
+  border-color: #9fcfc6;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+
+.speak-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* 遮住单词时，朗读按钮仍然可用，便于听音辨词。 */
+.word-row.word-hidden .speak-button {
+  color: var(--accent);
+}
+
+/*
+ * 单词旁的紧凑朗读按钮：窄屏显示（此时没有独立朗读列），宽屏隐藏。
+ * 这些规则必须写在 .speak-button 之后，否则同优先级下会被它覆盖。
+ */
+.word-speak {
+  display: grid;
+}
+
+@media (min-width: 981px) {
+  .word-speak {
+    display: none;
+  }
+
+  /* 宽屏音标有独立列，行内那份必须藏起来 */
+  .phonetic-inline {
+    display: none;
+  }
 }
 
 .word-reveal-note {
@@ -782,14 +881,29 @@ svg {
   right: 24px;
   bottom: 20px;
   z-index: 40;
-  display: flex;
+  display: grid;
   gap: 8px;
-  padding: 8px;
+  padding: 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 12px 32px rgba(26, 50, 41, 0.18);
   backdrop-filter: blur(12px);
+}
+
+.controls-row {
+  display: grid;
+  grid-template-columns: 76px 118px 118px;
+  align-items: center;
+  gap: 8px;
+}
+
+.controls-label {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .study-toggle {
@@ -825,6 +939,29 @@ svg {
   background: var(--warm-soft);
 }
 
+/* 口音切换用主题青色，和练习模式开关区分开。 */
+#accentToggle[aria-pressed="true"] {
+  border-color: #9fcfc6;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 96px;
+  z-index: 45;
+  max-width: min(420px, calc(100vw - 48px));
+  padding: 11px 14px;
+  border: 1px solid #f0b8a0;
+  border-radius: 6px;
+  color: #7d3419;
+  background: var(--surface-warm);
+  box-shadow: var(--shadow);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
 .study-toggle svg {
   width: 15px;
   height: 15px;
@@ -843,14 +980,53 @@ svg {
   box-shadow: var(--shadow);
 }
 
+@media (max-width: 1180px) {
+  :root {
+    --col-order: 56px;
+    --col-word: minmax(130px, 0.95fr);
+    --col-phonetic: minmax(110px, 0.75fr);
+    --col-part: 86px;
+    --col-meaning: minmax(180px, 2fr);
+    --col-audio: 42px;
+    --col-favorite: 44px;
+  }
+
+  .phonetic {
+    font-size: 12px;
+  }
+}
+
 @media (max-width: 980px) {
+  :root {
+    /* 朗读按钮并到单词旁，去掉独立朗读列；音标列收窄为按内容宽度 */
+    --col-phonetic: max-content;
+    --col-audio: 0px;
+    --col-order: 52px;
+    --col-word: minmax(120px, 1fr);
+    --col-part: 76px;
+    --col-meaning: minmax(150px, 1.8fr);
+    --col-favorite: 42px;
+  }
+
   .toolbar {
     grid-template-columns: minmax(230px, 1fr) 150px auto;
   }
 
-  .word-list-head,
-  .word-row {
-    grid-template-columns: 60px minmax(135px, 0.95fr) 92px minmax(210px, 2fr) 44px;
+  /* 隐藏独立朗读列，改用单词旁的紧凑按钮。 */
+  .audio-head,
+  .word-audio {
+    display: none;
+  }
+
+  .word-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .phonetic {
+    font-size: 12px;
+    padding-right: 8px;
   }
 }
 
@@ -958,6 +1134,26 @@ svg {
     display: none;
   }
 
+  /* 手机端单词列太窄，音标换到单词下方显示 */
+  .word-row > .phonetic {
+    display: none;
+  }
+
+  .phonetic-inline {
+    display: block;
+    flex: 1 0 100%;
+    padding-top: 3px;
+    color: #5d6f68;
+    font-family:
+      "Microsoft YaHei",
+      "PingFang SC",
+      "Segoe UI",
+      sans-serif;
+    font-size: 11.5px;
+    font-weight: 400;
+    line-height: 1.4;
+  }
+
   .word-row {
     grid-template-columns: 42px minmax(0, 1fr) 40px;
     grid-template-areas:
@@ -1015,6 +1211,13 @@ svg {
     min-width: 0;
     width: 100%;
     height: 42px;
+  }
+
+  .toast {
+    right: 10px;
+    bottom: 168px;
+    left: 10px;
+    max-width: none;
   }
 }
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="大学英语四级核心词汇 1000 的网页浏览版，支持分 List 浏览、搜索、词性筛选和释义遮蔽。"
+      content="大学英语四级核心词汇 1000 的网页浏览版，支持分 List 浏览、搜索、词性筛选、释义遮蔽和真人发音朗读。"
     />
     <title>大学英语四级核心词汇 1000</title>
     <link rel="stylesheet" href="./styles.css" />
@@ -37,6 +37,14 @@
           <button class="text-button" id="resetFilters" type="button">重置</button>
         </div>
         <nav class="list-nav" id="listNav"></nav>
+        <div class="sidebar-note pronunciation-note">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M11 5 6 9H2v6h4l5 4V5z" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          </svg>
+          <span>点击词条的喇叭按钮可听真人发音，音标默认为美音，可在右下角切换英音。</span>
+        </div>
         <div class="sidebar-note">
           <svg aria-hidden="true" viewBox="0 0 24 24">
             <path d="M12 3v18M3 12h18" />
@@ -110,8 +118,10 @@
           <div class="word-list-head" aria-hidden="true">
             <span>序号</span>
             <span>单词</span>
+            <span>音标</span>
             <span>词性</span>
             <span>释义</span>
+            <span class="audio-head">朗读</span>
             <span></span>
           </div>
           <ol class="word-list" id="wordList"></ol>
@@ -134,13 +144,15 @@
     </div>
 
     <div class="study-controls" aria-label="练习模式">
-      <button
-        class="study-toggle"
-        id="wordToggle"
-        type="button"
-        aria-pressed="false"
-        title="隐藏或显示英文单词"
-      >
+      <div class="controls-row">
+        <span class="controls-label">练习模式</span>
+        <button
+          class="study-toggle"
+          id="wordToggle"
+          type="button"
+          aria-pressed="false"
+          title="隐藏或显示英文单词"
+        >
         <svg class="icon-eye" aria-hidden="true" viewBox="0 0 24 24">
           <path
             d="M2.06 12.35a1 1 0 0 1 0-.7C3.73 7.13 7.52 4 12 4s8.27 3.13 9.94 7.65a1 1 0 0 1 0 .7C20.27 16.87 16.48 20 12 20s-8.27-3.13-9.94-7.65Z"
@@ -155,14 +167,14 @@
           />
         </svg>
         <span>遮住单词</span>
-      </button>
-      <button
-        class="study-toggle"
-        id="meaningToggle"
-        type="button"
-        aria-pressed="false"
-        title="隐藏或显示中文释义"
-      >
+        </button>
+        <button
+          class="study-toggle"
+          id="meaningToggle"
+          type="button"
+          aria-pressed="false"
+          title="隐藏或显示中文释义"
+        >
         <svg class="icon-eye" aria-hidden="true" viewBox="0 0 24 24">
           <path
             d="M2.06 12.35a1 1 0 0 1 0-.7C3.73 7.13 7.52 4 12 4s8.27 3.13 9.94 7.65a1 1 0 0 1 0 .7C20.27 16.87 16.48 20 12 20s-8.27-3.13-9.94-7.65Z"
@@ -177,8 +189,45 @@
           />
         </svg>
         <span>遮住释义</span>
-      </button>
+        </button>
+      </div>
+
+      <div class="controls-row">
+        <span class="controls-label">英语发音</span>
+        <button
+          class="study-toggle"
+          id="accentToggle"
+          type="button"
+          data-accent="us"
+          aria-pressed="false"
+          title="切换美式发音和英式发音"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M11 5 6 9H2v6h4l5 4V5z" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          </svg>
+          <span id="accentLabel">美音 US</span>
+        </button>
+        <button
+          class="study-toggle"
+          id="autoSpeakToggle"
+          type="button"
+          aria-pressed="false"
+          title="开启后点击词条任意位置即可朗读"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+            <path
+              d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"
+            />
+          </svg>
+          <span>点击即读</span>
+        </button>
+      </div>
     </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
     <noscript>
       <div class="noscript-message">此页面需要启用 JavaScript 才能浏览词汇。</div>
