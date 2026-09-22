@@ -2,6 +2,11 @@
   "use strict";
 
   const rawWords = Array.isArray(window.CET4_WORDS) ? window.CET4_WORDS : [];
+  // 例句、常用搭配和同义词按「单词」存放，避免在重复词条里存多份。
+  const wordDetails =
+    window.CET4_WORD_DETAILS && typeof window.CET4_WORD_DETAILS === "object"
+      ? window.CET4_WORD_DETAILS
+      : {};
   const partOrder = ["n", "v", "adj", "adv", "prep", "conj", "pron", "num", "art", "int"];
   const partLabels = {
     n: "名词 n",
@@ -28,6 +33,7 @@
   const favoriteStorageKey = "cet4-favorites";
   const accentStorageKey = "cet4-accent";
   const autoSpeakStorageKey = "cet4-auto-speak";
+  const detailStorageKey = "cet4-detail";
 
   function normalizePartKeys(part) {
     const keys = new Set();
@@ -82,6 +88,8 @@
     visibleLimit: initialLimit,
     accent: loadAccent(),
     autoSpeak: loadAutoSpeak(),
+    showDetails: loadShowDetails(),
+    expandedIds: new Set(),
   };
 
   const elements = {
@@ -96,6 +104,8 @@
     accentToggle: document.querySelector("#accentToggle"),
     accentLabel: document.querySelector("#accentLabel"),
     autoSpeakToggle: document.querySelector("#autoSpeakToggle"),
+    detailToggle: document.querySelector("#detailToggle"),
+    collapseToggle: document.querySelector("#collapseToggle"),
     resetFilters: document.querySelector("#resetFilters"),
     viewEyebrow: document.querySelector("#viewEyebrow"),
     viewTitle: document.querySelector("#viewTitle"),
@@ -133,6 +143,10 @@
 
   function loadAutoSpeak() {
     return readStorage(autoSpeakStorageKey) === "true";
+  }
+
+  function loadShowDetails() {
+    return readStorage(detailStorageKey) === "true";
   }
 
   function loadFavorites() {
@@ -391,6 +405,120 @@
     return accent === "uk" ? word.ukphone || word.usphone || "" : word.usphone || word.ukphone || "";
   }
 
+  function hasDetail(word) {
+    const detail = wordDetails[word.word];
+    if (!detail) {
+      return false;
+    }
+    return Boolean(
+      (detail.sentences && detail.sentences.length) ||
+        (detail.phrases && detail.phrases.length) ||
+        (detail.synonyms && detail.synonyms.length),
+    );
+  }
+
+  function buildDetailPanel(word, accent) {
+    const detail = wordDetails[word.word] || {};
+    const accentInfo = accentOptions[accent];
+
+    const synonyms = (detail.synonyms || [])
+      .map(
+        (group) => `
+          <span class="detail-synonym">
+            ${group.pos ? `<em>${escapeHtml(group.pos)}</em>` : ""}
+            <span class="synonym-words">${group.words
+              .map((item) => escapeHtml(item))
+              .join("、")}</span>
+            ${group.cn ? `<span class="synonym-cn">${escapeHtml(group.cn)}</span>` : ""}
+          </span>`,
+      )
+      .join("");
+
+    const phrases = (detail.phrases || [])
+      .map(
+        (item) => `
+          <li class="phrase-item">
+            <button
+              class="phrase-en"
+              type="button"
+              data-action="speak-text"
+              data-speak="${escapeHtml(item.en)}"
+              title="朗读这个搭配"
+            >${escapeHtml(item.en)}</button>
+            <span class="phrase-cn">${escapeHtml(item.cn)}</span>
+          </li>`,
+      )
+      .join("");
+
+    const sentences = (detail.sentences || [])
+      .map(
+        (item) => `
+          <li class="sentence-item">
+            <button
+              class="sentence-en"
+              type="button"
+              data-action="speak-text"
+              data-speak="${escapeHtml(item.en)}"
+              title="朗读这个例句"
+            >${escapeHtml(item.en)}</button>
+            <span class="sentence-cn" lang="zh-CN">${escapeHtml(item.cn)}</span>
+          </li>`,
+      )
+      .join("");
+
+    const panel = document.createElement("div");
+    panel.className = "word-detail";
+    panel.innerHTML = `
+      <div class="detail-inner">
+        ${
+          synonyms
+            ? `<div class="detail-block detail-synonyms">
+                 <span class="detail-label">同义词</span>
+                 <div class="detail-body">${synonyms}</div>
+               </div>`
+            : ""
+        }
+        ${
+          phrases
+            ? `<div class="detail-block">
+                 <span class="detail-label">常用搭配</span>
+                 <ul class="detail-body detail-phrases">${phrases}</ul>
+               </div>`
+            : ""
+        }
+        ${
+          sentences
+            ? `<div class="detail-block">
+                 <span class="detail-label">例句</span>
+                 <ul class="detail-body detail-sentences" lang="${accentInfo.lang}">${sentences}</ul>
+               </div>`
+            : ""
+        }
+      </div>
+    `;
+    return panel;
+  }
+
+  function updateDetailVisibility(row, word) {
+    const panel = row.querySelector(".word-detail");
+    if (!panel) {
+      return;
+    }
+    const open = state.showDetails !== state.expandedIds.has(word.id);
+    panel.hidden = !open;
+    row.classList.toggle("detail-open", open);
+    const toggle = row.querySelector('[data-action="detail"]');
+    if (toggle) {
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle.title = open ? "收起例句搭配" : "展开例句搭配";
+    }
+  }
+
+  // 没有任何展开项时「全部收起」不可用。
+  function syncCollapseButton() {
+    elements.collapseToggle.disabled = !state.showDetails && state.expandedIds.size === 0;
+  }
+
   function renderWordRow(word, previousWord) {
     const isFavorite = favorites.has(word.id);
     const order = state.selectedList === "all" ? word.globalNumber : word.number;
@@ -440,6 +568,20 @@
       <span class="meaning">
         <span class="meaning-text">${escapeHtml(word.meaning)}</span>
         <span class="meaning-reveal-note">点击查看释义</span>
+        ${
+          hasDetail(word)
+            ? `<button
+                 class="detail-toggle"
+                 type="button"
+                 data-action="detail"
+                 aria-expanded="false"
+                 aria-label="展开 ${escapeHtml(word.word)} 的例句和搭配"
+                 title="展开例句搭配"
+               >
+                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+               </button>`
+            : ""
+        }
       </span>
       <span class="word-audio">
         <button
@@ -470,6 +612,10 @@
       </button>
     `;
     observeRow(row);
+    // 详情面板是行内独立的一行（grid-column: 2 / 7），直接插进行尾。
+    if (hasDetail(word)) {
+      row.append(buildDetailPanel(word, accent));
+    }
     return row;
   }
 
@@ -506,7 +652,10 @@
     fragment.replaceChildren();
 
     visibleWords.forEach((word, index) => {
-      fragment.append(renderWordRow(word, visibleWords[index - 1]));
+      const row = renderWordRow(word, visibleWords[index - 1]);
+      fragment.append(row);
+      // 面板已经插进行内，这里再按当前展开状态决定显隐。
+      updateDetailVisibility(row, word);
     });
     elements.wordList.replaceChildren(fragment);
 
@@ -543,6 +692,11 @@
     elements.autoSpeakToggle.title = state.autoSpeak
       ? "已开启：点击词条任意位置即可朗读"
       : "开启后点击词条任意位置即可朗读";
+    elements.detailToggle.setAttribute("aria-pressed", state.showDetails ? "true" : "false");
+    elements.detailToggle.title = state.showDetails
+      ? "已开启：所有词条都显示例句搭配"
+      : "展开或收起词条的例句、常用搭配和同义词";
+    syncCollapseButton();
     elements.clearSearch.hidden = !state.query;
 
     updateHeading(filteredWords.length);
@@ -621,15 +775,42 @@
     render();
   });
 
+  elements.detailToggle.addEventListener("click", () => {
+    state.showDetails = !state.showDetails;
+    writeStorage(detailStorageKey, String(state.showDetails));
+    // 关闭全局展开时，逐条展开的记录一并清掉，避免语义歧义。
+    if (!state.showDetails) {
+      state.expandedIds.clear();
+    }
+    render();
+  });
+
+  elements.collapseToggle.addEventListener("click", () => {
+    // 全局展开和逐条展开都要重置，否则重绘时会再次展开。
+    state.expandedIds.clear();
+    state.showDetails = false;
+    writeStorage(detailStorageKey, "false");
+    render();
+  });
+
   elements.wordList.addEventListener("click", (event) => {
     const speakButton = event.target.closest('[data-action="speak"]');
+    const speakTextButton = event.target.closest('[data-action="speak-text"]');
     const favoriteButton = event.target.closest('[data-action="favorite"]');
+    const detailButton = event.target.closest('[data-action="detail"]');
     const row = event.target.closest(".word-row");
     if (!row) {
       return;
     }
     const word = words.find((item) => item.id === row.dataset.wordId);
     if (!word) {
+      return;
+    }
+
+    // 例句和搭配的朗读：直接读按钮上的文本。
+    if (speakTextButton) {
+      stopSpeaking();
+      playWord(speakTextButton.dataset.speak, state.accent);
       return;
     }
 
@@ -646,6 +827,25 @@
       }
       saveFavorites();
       render();
+      return;
+    }
+
+    if (detailButton) {
+      if (state.expandedIds.has(word.id)) {
+        state.expandedIds.delete(word.id);
+      } else {
+        state.expandedIds.add(word.id);
+      }
+      updateDetailVisibility(row, word);
+      syncCollapseButton();
+      return;
+    }
+
+    // 已展开时点击词条主体即收起，方便快速翻阅。
+    if (state.expandedIds.has(word.id)) {
+      state.expandedIds.delete(word.id);
+      updateDetailVisibility(row, word);
+      syncCollapseButton();
       return;
     }
 

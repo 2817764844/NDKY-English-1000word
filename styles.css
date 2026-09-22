@@ -564,7 +564,8 @@ svg {
   border-bottom: 0;
 }
 
-.word-row:hover {
+.word-row:hover,
+.word-row.detail-open {
   background: #fafcfb;
   box-shadow: inset 3px 0 0 var(--accent);
 }
@@ -726,7 +727,7 @@ svg {
 .meaning {
   position: relative;
   min-width: 0;
-  padding-right: 16px;
+  padding-right: 34px;
   color: #34423c;
   font-size: 13.5px;
   line-height: 1.55;
@@ -816,6 +817,189 @@ svg {
 .favorite-button svg {
   width: 17px;
   height: 17px;
+}
+
+/* ===== 词条详情：例句、常用搭配、同义词 ===== */
+
+.detail-toggle {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: #9aa49f;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color 140ms ease,
+    background 140ms ease;
+}
+
+/* 固定在释义列右端，不挤压释义文字 */
+.meaning .detail-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+}
+
+.detail-toggle:hover {
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+
+.detail-toggle svg {
+  width: 15px;
+  height: 15px;
+}
+
+.detail-toggle[aria-expanded="true"] {
+  color: var(--accent-dark);
+}
+
+.detail-toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.detail-toggle svg {
+  transition: transform 160ms ease;
+}
+
+.word-detail {
+  grid-column: 2 / 7;
+  padding: 2px 4px 16px 0;
+}
+
+.detail-inner {
+  padding: 13px 16px 15px;
+  border-left: 3px solid #b8ddd6;
+  border-radius: 0 6px 6px 0;
+  background: #f7faf9;
+}
+
+.detail-block + .detail-block {
+  margin-top: 13px;
+}
+
+.detail-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--warm);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.detail-body {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #34423c;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 同义词 */
+
+.detail-synonyms .detail-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.detail-synonym {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 9px;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.detail-synonym em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.synonym-words {
+  color: #176d54;
+  font-family: "Georgia", "Times New Roman", serif;
+  font-size: 13.5px;
+}
+
+.synonym-cn {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+/* 搭配与例句：英文可点击朗读 */
+
+.detail-phrases,
+.detail-sentences {
+  display: grid;
+  gap: 7px;
+}
+
+.phrase-item,
+.sentence-item {
+  display: grid;
+  gap: 1px;
+  padding-left: 18px;
+  position: relative;
+}
+
+.phrase-item::before,
+.sentence-item::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #b8ddd6;
+}
+
+.phrase-en,
+.sentence-en {
+  display: inline;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 3px;
+  color: #173f38;
+  background: transparent;
+  font-family: "Georgia", "Times New Roman", serif;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 130ms ease,
+    background 130ms ease;
+}
+
+.phrase-en {
+  font-weight: 700;
+}
+
+.phrase-en:hover,
+.sentence-en:hover {
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+
+.phrase-cn,
+.sentence-cn {
+  color: var(--muted-strong);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.sentence-cn {
+  color: var(--muted);
 }
 
 .empty-state {
@@ -965,6 +1149,17 @@ svg {
 .study-toggle svg {
   width: 15px;
   height: 15px;
+}
+
+.study-toggle:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.study-toggle:disabled:hover {
+  border-color: var(--border-strong);
+  color: var(--muted-strong);
+  background: #ffffff;
 }
 
 .noscript-message {
@@ -1191,6 +1386,28 @@ svg {
 
   .favorite-button {
     grid-area: favorite;
+  }
+
+  /* 手机端面板占满整行。注意不能只写 grid-column: auto，
+     否则自动排布会把它塞进序号列，必须显式跨越所有列。 */
+  .word-detail {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: auto;
+    padding: 2px 0 4px;
+  }
+
+  .word-detail .detail-inner {
+    padding: 12px 13px 13px;
+  }
+
+  .phrase-en,
+  .sentence-en {
+    font-size: 13.5px;
+  }
+
+  .meaning .detail-toggle {
+    right: -4px;
   }
 
   .study-controls {

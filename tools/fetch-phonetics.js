@@ -16,6 +16,7 @@
 const fs = require("fs");
 const path = require("path");
 const https = require("https");
+const { readHeadwords } = require("./words-file");
 
 const projectDir = path.resolve(__dirname, "..");
 const wordsFile = path.join(projectDir, "words.js");
@@ -23,15 +24,6 @@ const outputFile = path.join(__dirname, "phonetics.json");
 const force = process.argv.includes("--force");
 const concurrency = 4;
 const maxRetries = 3;
-
-function readHeadwords() {
-  const source = fs.readFileSync(wordsFile, "utf8");
-  const json = source
-    .replace(/^\s*window\.CET4_WORDS\s*=\s*/, "")
-    .replace(/;\s*$/, "");
-  const words = JSON.parse(json);
-  return [...new Set(words.map((item) => item.word))].sort();
-}
 
 function request(url) {
   return new Promise((resolve, reject) => {
@@ -89,7 +81,7 @@ async function fetchPhonetic(word) {
 }
 
 async function main() {
-  const headwords = readHeadwords();
+  const headwords = readHeadwords(wordsFile);
   let store = {};
   if (!force && fs.existsSync(outputFile)) {
     store = JSON.parse(fs.readFileSync(outputFile, "utf8"));
