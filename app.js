@@ -34,6 +34,8 @@
   const accentStorageKey = "cet4-accent";
   const autoSpeakStorageKey = "cet4-auto-speak";
   const detailStorageKey = "cet4-detail";
+  let activeRandomWord = null;
+  let randomMeaningRevealed = false;
 
   function normalizePartKeys(part) {
     const keys = new Set();
@@ -110,6 +112,16 @@
     viewEyebrow: document.querySelector("#viewEyebrow"),
     viewTitle: document.querySelector("#viewTitle"),
     resultCount: document.querySelector("#resultCount"),
+    randomWordButton: document.querySelector("#randomWordButton"),
+    randomModal: document.querySelector("#randomModal"),
+    randomWordMeta: document.querySelector("#randomWordMeta"),
+    randomWordTitle: document.querySelector("#randomWordTitle"),
+    randomWordPhonetic: document.querySelector("#randomWordPhonetic"),
+    randomWordPart: document.querySelector("#randomWordPart"),
+    randomWordMeaning: document.querySelector("#randomWordMeaning"),
+    randomWordMeaningText: document.querySelector("#randomWordMeaningText"),
+    randomWordMeaningNote: document.querySelector("#randomWordMeaningNote"),
+    randomFavoriteButton: document.querySelector("#randomFavoriteButton"),
     wordList: document.querySelector("#wordList"),
     emptyState: document.querySelector("#emptyState"),
     emptyReset: document.querySelector("#emptyReset"),
@@ -644,6 +656,80 @@
       filters.length > 0
         ? `${filteredCount} 条结果 · ${filters.join(" · ")}`
         : `共 ${filteredCount} 个单词`;
+    elements.randomWordButton.disabled = filteredCount === 0;
+  }
+
+  function randomScopeLabel() {
+    if (state.selectedList === "all") {
+      return "全部词汇";
+    }
+    const summary = listSummaries[Number(state.selectedList) - 1];
+    return summary ? `List ${summary.number} · 第 ${summary.start}-${summary.end} 词` : "当前列表";
+  }
+
+  function updateRandomMeaningState() {
+    elements.randomWordMeaning.classList.toggle(
+      "meaning-hidden",
+      !randomMeaningRevealed,
+    );
+    elements.randomWordMeaning.setAttribute(
+      "aria-pressed",
+      randomMeaningRevealed ? "true" : "false",
+    );
+    elements.randomWordMeaning.title = randomMeaningRevealed
+      ? "点击遮住中文释义"
+      : "点击显示中文释义";
+    elements.randomWordMeaningNote.textContent = randomMeaningRevealed
+      ? "点击遮住中文释义"
+      : "点击显示中文释义";
+  }
+
+  function renderRandomWord() {
+    if (!activeRandomWord) {
+      return;
+    }
+    const word = activeRandomWord;
+    const accent = state.accent;
+    const accentInfo = accentOptions[accent];
+    const phonetic = phoneticFor(word, accent);
+    const isFavorite = favorites.has(word.id);
+
+    elements.randomWordMeta.textContent = `${randomScopeLabel()} · ${accentInfo.name}`;
+    elements.randomWordTitle.textContent = word.word;
+    elements.randomWordPhonetic.textContent = phonetic ? `/${phonetic}/` : "—";
+    elements.randomWordPhonetic.lang = accentInfo.lang;
+    elements.randomWordPart.textContent = word.part;
+    elements.randomWordPart.className = `random-card-part part-badge ${partClass(word.partKeys)}`;
+    elements.randomWordMeaningText.textContent = word.meaning;
+    updateRandomMeaningState();
+    elements.randomFavoriteButton.setAttribute("aria-pressed", isFavorite ? "true" : "false");
+    elements.randomFavoriteButton.title = isFavorite ? "取消收藏" : "收藏";
+  }
+
+  function closeRandomWord() {
+    activeRandomWord = null;
+    randomMeaningRevealed = false;
+    elements.randomModal.hidden = true;
+  }
+
+  function openRandomWord() {
+    const filteredWords = getFilteredWords();
+    if (!filteredWords.length) {
+      showToast("当前筛选下没有可抽取的单词。");
+      return;
+    }
+    let next = filteredWords[Math.floor(Math.random() * filteredWords.length)];
+    if (filteredWords.length > 1 && activeRandomWord) {
+      let guard = 0;
+      while (next.id === activeRandomWord.id && guard < 12) {
+        next = filteredWords[Math.floor(Math.random() * filteredWords.length)];
+        guard += 1;
+      }
+    }
+    activeRandomWord = next;
+    randomMeaningRevealed = false;
+    renderRandomWord();
+    elements.randomModal.hidden = false;
   }
 
   function render() {
@@ -698,6 +784,9 @@
       : "展开或收起词条的例句、常用搭配和同义词";
     syncCollapseButton();
     elements.clearSearch.hidden = !state.query;
+    if (activeRandomWord) {
+      renderRandomWord();
+    }
 
     updateHeading(filteredWords.length);
     updateListNav();
@@ -871,6 +960,33 @@
 
   elements.resetFilters.addEventListener("click", resetFilters);
   elements.emptyReset.addEventListener("click", resetFilters);
+  elements.randomWordButton.addEventListener("click", openRandomWord);
+  elements.randomModal.addEventListener("click", (event) => {
+    const actionButton = event.target.closest("[data-random-action]");
+    if (!actionButton) {
+      return;
+    }
+    const action = actionButton.dataset.randomAction;
+    if (action === "close") {
+      closeRandomWord();
+    } else if (action === "next") {
+      openRandomWord();
+    } else if (action === "reveal-meaning" && activeRandomWord) {
+      randomMeaningRevealed = !randomMeaningRevealed;
+      updateRandomMeaningState();
+    } else if (action === "speak" && activeRandomWord) {
+      playWord(activeRandomWord.word, state.accent);
+    } else if (action === "favorite" && activeRandomWord) {
+      if (favorites.has(activeRandomWord.id)) {
+        favorites.delete(activeRandomWord.id);
+      } else {
+        favorites.add(activeRandomWord.id);
+      }
+      saveFavorites();
+      render();
+      renderRandomWord();
+    }
+  });
 
   document.addEventListener("keydown", (event) => {
     const target = event.target;
@@ -881,6 +997,9 @@
     if (event.key === "/" && !isTyping) {
       event.preventDefault();
       elements.searchInput.focus();
+    }
+    if (event.key === "Escape" && !elements.randomModal.hidden) {
+      closeRandomWord();
     }
   });
 

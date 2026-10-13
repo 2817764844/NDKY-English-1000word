@@ -111,7 +111,25 @@
             <p class="eyebrow" id="viewEyebrow">全部词汇</p>
             <h2 id="viewTitle">大学英语四级核心词汇</h2>
           </div>
-          <p class="result-count" id="resultCount">正在载入...</p>
+          <div class="heading-actions">
+            <p class="result-count" id="resultCount">正在载入...</p>
+            <button
+              class="random-word-button"
+              id="randomWordButton"
+              type="button"
+              disabled
+              title="从当前列表或筛选结果中随机抽取一个单词"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="m18 14 4 4-4 4" />
+                <path d="m18 2 4 4-4 4" />
+                <path d="M2 18h1.97a4 4 0 0 0 3.3-1.7l5.46-8.6a4 4 0 0 1 3.3-1.7H22" />
+                <path d="M2 6h1.97a4 4 0 0 1 3.6 2.2" />
+                <path d="M22 18h-6.04a4 4 0 0 1-3.3-1.8l-.36-.45" />
+              </svg>
+              <span>随机单词</span>
+            </button>
+          </div>
         </section>
 
         <section class="word-panel" aria-label="单词列表">
@@ -252,6 +270,78 @@
           <span>全部收起</span>
         </button>
       </div>
+    </div>
+
+    <div
+      class="random-modal"
+      id="randomModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="randomWordTitle"
+      hidden
+    >
+      <div class="random-backdrop" data-random-action="close"></div>
+      <article class="random-card">
+        <div class="random-card-head">
+          <span class="random-card-meta" id="randomWordMeta"></span>
+          <button
+            class="icon-button random-card-close"
+            type="button"
+            data-random-action="close"
+            aria-label="关闭随机单词"
+            title="关闭"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <p class="random-card-word" id="randomWordTitle"></p>
+        <p class="random-card-phonetic" id="randomWordPhonetic"></p>
+        <div class="random-card-part" id="randomWordPart"></div>
+        <button
+          class="random-card-meaning"
+          id="randomWordMeaning"
+          type="button"
+          data-random-action="reveal-meaning"
+          aria-pressed="false"
+          title="点击显示中文释义"
+        >
+          <span class="random-meaning-text" id="randomWordMeaningText"></span>
+          <span class="random-meaning-note" id="randomWordMeaningNote">点击显示中文释义</span>
+        </button>
+        <div class="random-card-actions">
+          <button type="button" data-random-action="speak">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M11 5 6 9H2v6h4l5 4V5z" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+            </svg>
+            <span>发音</span>
+          </button>
+          <button
+            type="button"
+            id="randomFavoriteButton"
+            data-random-action="favorite"
+            aria-pressed="false"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+            <span>收藏</span>
+          </button>
+          <button type="button" data-random-action="next">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="m18 14 4 4-4 4" />
+              <path d="m18 2 4 4-4 4" />
+              <path d="M2 18h1.97a4 4 0 0 0 3.3-1.7l5.46-8.6a4 4 0 0 1 3.3-1.7H22" />
+              <path d="M2 6h1.97a4 4 0 0 1 3.6 2.2" />
+              <path d="M22 18h-6.04a4 4 0 0 1-3.3-1.8l-.36-.45" />
+            </svg>
+            <span>再抽一个</span>
+          </button>
+        </div>
+      </article>
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
