@@ -1679,6 +1679,13 @@ svg {
   }
 }
 
+@media (max-width: 560px) {
+  /* 窄屏下两组控制按钮并排放不下，改为单列，避免右侧按钮被裁掉。 */
+  .study-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 460px) {
   .header-inner,
   .app-shell {

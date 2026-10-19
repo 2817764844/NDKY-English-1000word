@@ -42,7 +42,7 @@
     String(part)
       .toLowerCase()
       .split("/")
-      .map((item) => item.trim())
+      .map((item) => item.trim().replace(/\.$/, ""))
       .filter(Boolean)
       .forEach((item) => {
         if (item === "vt" || item === "vi") {
@@ -65,14 +65,15 @@
       partKeys: normalizePartKeys(item.part),
     }));
 
-  const listSummaries = Array.from({ length: 10 }, (_, index) => {
-    const number = index + 1;
+  const listNumbers = [...new Set(words.map((word) => word.list))].sort((a, b) => a - b);
+  const listSummaries = listNumbers.map((number) => {
     const listWords = words.filter((word) => word.list === number);
+    const start = listWords.length ? listWords[0].globalNumber : 0;
     return {
       number,
       count: listWords.length,
-      start: (number - 1) * 100 + 1,
-      end: number * 100,
+      start,
+      end: start + listWords.length - 1,
     };
   });
 
@@ -95,6 +96,10 @@
   };
 
   const elements = {
+    headerWordCount: document.querySelector("#headerWordCount"),
+    headerListCount: document.querySelector("#headerListCount"),
+    summaryWordCount: document.querySelector("#summaryWordCount"),
+    summaryListCount: document.querySelector("#summaryListCount"),
     listNav: document.querySelector("#listNav"),
     searchInput: document.querySelector("#searchInput"),
     clearSearch: document.querySelector("#clearSearch"),
@@ -347,7 +352,7 @@
     allButton.innerHTML = `
       <span>
         <span class="nav-label">全部词汇</span>
-        <span class="nav-range">完整 1000 词</span>
+        <span class="nav-range">完整 ${words.length} 词</span>
       </span>
       <span class="nav-count">${words.length}</span>
     `;
@@ -736,6 +741,19 @@
     const filteredWords = getFilteredWords();
     const visibleWords = filteredWords.slice(0, state.visibleLimit);
     fragment.replaceChildren();
+
+    if (elements.headerWordCount) {
+      elements.headerWordCount.textContent = String(words.length);
+    }
+    if (elements.headerListCount) {
+      elements.headerListCount.textContent = String(listSummaries.length);
+    }
+    if (elements.summaryWordCount) {
+      elements.summaryWordCount.textContent = String(words.length);
+    }
+    if (elements.summaryListCount) {
+      elements.summaryListCount.textContent = String(listSummaries.length);
+    }
 
     visibleWords.forEach((word, index) => {
       const row = renderWordRow(word, visibleWords[index - 1]);
