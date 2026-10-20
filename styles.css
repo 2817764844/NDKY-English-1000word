@@ -701,7 +701,7 @@ svg {
 
 .random-card-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin-top: 20px;
   padding-top: 16px;
@@ -737,8 +737,14 @@ svg {
   background: var(--gold-soft);
 }
 
-.random-card-actions button[aria-pressed="true"] svg {
+.random-card-actions button[data-random-action="favorite"][aria-pressed="true"] svg {
   fill: currentColor;
+}
+
+.random-card-actions button[data-random-action="forget"][aria-pressed="true"] {
+  border-color: #e3c0b4;
+  color: #a3543d;
+  background: #fdf1ec;
 }
 
 .random-card-actions svg {

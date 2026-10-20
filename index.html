@@ -330,6 +330,19 @@
             </svg>
             <span>收藏</span>
           </button>
+          <button
+            type="button"
+            id="randomForgotButton"
+            data-random-action="forget"
+            aria-pressed="false"
+            title="没记住，留到下一轮再抽"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M3 12a9 9 0 1 0 3-6.7" />
+              <path d="M3 4v5h5" />
+            </svg>
+            <span id="randomForgotLabel">遗忘</span>
+          </button>
           <button type="button" data-random-action="next">
             <svg aria-hidden="true" viewBox="0 0 24 24">
               <path d="m18 14 4 4-4 4" />
@@ -338,7 +351,7 @@
               <path d="M2 6h1.97a4 4 0 0 1 3.6 2.2" />
               <path d="M22 18h-6.04a4 4 0 0 1-3.3-1.8l-.36-.45" />
             </svg>
-            <span>再抽一个</span>
+            <span id="randomNextLabel">再抽一个</span>
           </button>
         </div>
       </article>

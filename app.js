@@ -42,7 +42,10 @@
   let randomBagScope = "";
   let randomBagTotal = 0;
   let randomBagDrawn = 0;
+  let randomRoundNumber = 0;
   let lastRandomWord = null;
+  // 被标记「遗忘」的词条留到下一轮；队列只属于当前候选范围，切换范围会清空。
+  const forgottenWords = new Set();
 
   function normalizePartKeys(part) {
     const keys = new Set();
@@ -134,6 +137,9 @@
     randomWordMeaningText: document.querySelector("#randomWordMeaningText"),
     randomWordMeaningNote: document.querySelector("#randomWordMeaningNote"),
     randomFavoriteButton: document.querySelector("#randomFavoriteButton"),
+    randomForgotButton: document.querySelector("#randomForgotButton"),
+    randomForgotLabel: document.querySelector("#randomForgotLabel"),
+    randomNextLabel: document.querySelector("#randomNextLabel"),
     wordList: document.querySelector("#wordList"),
     emptyState: document.querySelector("#emptyState"),
     emptyReset: document.querySelector("#emptyReset"),
@@ -705,9 +711,35 @@
     return shuffled;
   }
 
-  // 返回本轮进度文案；只有 1 个候选词时不显示。
+  // 返回本轮进度文案；只有 1 个候选词且还是第一轮时不显示进度。
   function randomProgressLabel() {
-    return randomBagTotal > 1 ? ` · 本轮 ${randomBagDrawn}/${randomBagTotal}` : "";
+    const progress =
+      randomBagTotal > 1 ? `${randomBagDrawn}/${randomBagTotal}` : "";
+    if (randomRoundNumber > 1) {
+      return progress
+        ? ` · 第 ${randomRoundNumber} 轮 ${progress}`
+        : ` · 第 ${randomRoundNumber} 轮`;
+    }
+    return progress ? ` · 本轮 ${progress}` : "";
+  }
+
+  // 当前筛选范围内、已经留到下一轮的词。
+  function pendingForgottenWords() {
+    return getFilteredWords().filter((word) => forgottenWords.has(word.id));
+  }
+
+  function toggleForgottenWord() {
+    if (!activeRandomWord) {
+      return;
+    }
+    if (forgottenWords.has(activeRandomWord.id)) {
+      forgottenWords.delete(activeRandomWord.id);
+      showToast("已移出下一轮");
+    } else {
+      forgottenWords.add(activeRandomWord.id);
+      showToast("已留到下一轮");
+    }
+    renderRandomWord();
   }
 
   function renderRandomWord() {
@@ -731,6 +763,24 @@
     updateRandomMeaningState();
     elements.randomFavoriteButton.setAttribute("aria-pressed", isFavorite ? "true" : "false");
     elements.randomFavoriteButton.title = isFavorite ? "取消收藏" : "收藏";
+
+    const isForgotten = forgottenWords.has(word.id);
+    elements.randomForgotButton.setAttribute(
+      "aria-pressed",
+      isForgotten ? "true" : "false",
+    );
+    elements.randomForgotLabel.textContent = isForgotten ? "已留" : "遗忘";
+    elements.randomForgotButton.title = isForgotten
+      ? "取消留到下一轮"
+      : "没记住，留到下一轮再抽";
+
+    if (randomBag.length === 0) {
+      const pendingCount = pendingForgottenWords().length;
+      elements.randomNextLabel.textContent =
+        pendingCount > 0 ? `下一轮 ${pendingCount}` : "重新洗牌";
+    } else {
+      elements.randomNextLabel.textContent = "再抽一个";
+    }
   }
 
   function closeRandomWord() {
@@ -748,17 +798,33 @@
 
     // 候选集合变化（切换 List、搜索、词性、收藏筛选）时重新开一轮。
     const scopeKey = filteredWords.map((word) => word.id).join(",");
-    if (scopeKey !== randomBagScope) {
+    const scopeChanged = scopeKey !== randomBagScope;
+    if (scopeChanged) {
+      if (forgottenWords.size > 0) {
+        showToast("已切换词汇范围，遗忘队列已清空");
+      }
+      forgottenWords.clear();
       randomBagScope = scopeKey;
       randomBag = [];
-      randomBagTotal = filteredWords.length;
+      randomBagTotal = 0;
       randomBagDrawn = 0;
+      randomRoundNumber = 0;
     }
 
     if (randomBag.length === 0) {
-      randomBag = shuffleWords(filteredWords);
-      randomBagTotal = filteredWords.length;
+      // 同一范围的一轮抽完后，把标记「遗忘」的词拿出来做下一轮；
+      // 刚切换到新范围时队列已清空，因此会先正常过一遍。
+      const pendingWords = filteredWords.filter((word) => forgottenWords.has(word.id));
+      if (pendingWords.length > 0) {
+        pendingWords.forEach((word) => forgottenWords.delete(word.id));
+        randomBag = shuffleWords(pendingWords);
+        randomBagTotal = pendingWords.length;
+      } else {
+        randomBag = shuffleWords(filteredWords);
+        randomBagTotal = filteredWords.length;
+      }
       randomBagDrawn = 0;
+      randomRoundNumber += 1;
       // 新一轮的第一个词尽量避开上一轮的最后一个词，避免跨轮连续重复。
       const lastIndex = randomBag.length - 1;
       if (lastIndex > 0 && lastRandomWord && randomBag[lastIndex].id === lastRandomWord.id) {
@@ -1036,6 +1102,8 @@
       updateRandomMeaningState();
     } else if (action === "speak" && activeRandomWord) {
       playWord(activeRandomWord.word, state.accent);
+    } else if (action === "forget") {
+      toggleForgottenWord();
     } else if (action === "favorite" && activeRandomWord) {
       if (favorites.has(activeRandomWord.id)) {
         favorites.delete(activeRandomWord.id);
