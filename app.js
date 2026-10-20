@@ -36,6 +36,13 @@
   const detailStorageKey = "cet4-detail";
   let activeRandomWord = null;
   let randomMeaningRevealed = false;
+  // 随机抽词采用「洗牌袋」：本轮先把候选词全部打乱，逐个抽出，抽完再重新洗牌。
+  // 这样同一轮里不会重复，也不会因为运气差而永远抽不到某些单词。
+  let randomBag = [];
+  let randomBagScope = "";
+  let randomBagTotal = 0;
+  let randomBagDrawn = 0;
+  let lastRandomWord = null;
 
   function normalizePartKeys(part) {
     const keys = new Set();
@@ -689,6 +696,20 @@
       : "点击显示中文释义";
   }
 
+  function shuffleWords(items) {
+    const shuffled = items.slice();
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    return shuffled;
+  }
+
+  // 返回本轮进度文案；只有 1 个候选词时不显示。
+  function randomProgressLabel() {
+    return randomBagTotal > 1 ? ` · 本轮 ${randomBagDrawn}/${randomBagTotal}` : "";
+  }
+
   function renderRandomWord() {
     if (!activeRandomWord) {
       return;
@@ -699,8 +720,9 @@
     const phonetic = phoneticFor(word, accent);
     const isFavorite = favorites.has(word.id);
 
-    elements.randomWordMeta.textContent = `${randomScopeLabel()} · ${accentInfo.name}`;
+    elements.randomWordMeta.textContent = `${randomScopeLabel()} · ${accentInfo.name}${randomProgressLabel()}`;
     elements.randomWordTitle.textContent = word.word;
+    elements.randomWordTitle.dataset.wordId = word.id;
     elements.randomWordPhonetic.textContent = phonetic ? `/${phonetic}/` : "—";
     elements.randomWordPhonetic.lang = accentInfo.lang;
     elements.randomWordPart.textContent = word.part;
@@ -723,14 +745,34 @@
       showToast("当前筛选下没有可抽取的单词。");
       return;
     }
-    let next = filteredWords[Math.floor(Math.random() * filteredWords.length)];
-    if (filteredWords.length > 1 && activeRandomWord) {
-      let guard = 0;
-      while (next.id === activeRandomWord.id && guard < 12) {
-        next = filteredWords[Math.floor(Math.random() * filteredWords.length)];
-        guard += 1;
+
+    // 候选集合变化（切换 List、搜索、词性、收藏筛选）时重新开一轮。
+    const scopeKey = filteredWords.map((word) => word.id).join(",");
+    if (scopeKey !== randomBagScope) {
+      randomBagScope = scopeKey;
+      randomBag = [];
+      randomBagTotal = filteredWords.length;
+      randomBagDrawn = 0;
+    }
+
+    if (randomBag.length === 0) {
+      randomBag = shuffleWords(filteredWords);
+      randomBagTotal = filteredWords.length;
+      randomBagDrawn = 0;
+      // 新一轮的第一个词尽量避开上一轮的最后一个词，避免跨轮连续重复。
+      const lastIndex = randomBag.length - 1;
+      if (lastIndex > 0 && lastRandomWord && randomBag[lastIndex].id === lastRandomWord.id) {
+        const swapIndex = Math.floor(Math.random() * lastIndex);
+        [randomBag[lastIndex], randomBag[swapIndex]] = [
+          randomBag[swapIndex],
+          randomBag[lastIndex],
+        ];
       }
     }
+
+    const next = randomBag.pop();
+    randomBagDrawn = randomBagTotal - randomBag.length;
+    lastRandomWord = next;
     activeRandomWord = next;
     randomMeaningRevealed = false;
     renderRandomWord();
