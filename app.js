@@ -47,6 +47,57 @@
   // 被标记「遗忘」的词条留到下一轮；队列只属于当前候选范围，切换范围会清空。
   const forgottenWords = new Set();
 
+  // 问答对战：同一套题目支持人机对战和同屏双人对战。
+  const battleTimerSeconds = 15;
+  const battleAiAccuracy = 0.65;
+  const battleDefaultCount = 10;
+  const battleState = {
+    active: false,
+    mode: "ai",
+    questionCount: battleDefaultCount,
+    scopeWords: [],
+    questions: [],
+    index: 0,
+    phase: "setup",
+    scores: [0, 0],
+    answers: [null, null],
+    names: ["你", "电脑"],
+    avatars: ["你", "AI"],
+    actor: 0,
+    optionOrder: [],
+    aiAnswer: null,
+    timerId: 0,
+    deadline: 0,
+  };
+
+  // 联机对战不依赖自建服务器：用 WebRTC DataChannel 点对点直连，
+  // 房主/对手之间手动交换邀请码和应答码完成握手。
+  const onlineSignalPrefix = "EW1.";
+  const onlineStartDelay = 900;
+  const onlineRtcConfig = {
+    iceServers: [
+      {
+        urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"],
+      },
+      { urls: "stun:stun.miwifi.com:3478" },
+    ],
+    iceCandidatePoolSize: 2,
+  };
+  const onlineState = {
+    role: null,
+    pc: null,
+    channel: null,
+    connected: false,
+    roomNumber: "",
+    localAnswered: false,
+    remoteAnswered: false,
+    remoteChoice: null,
+    revealed: false,
+    startTimer: 0,
+    hostTotal: 0,
+    scopeLabel: "",
+  };
+
   function normalizePartKeys(part) {
     const keys = new Set();
     String(part)
@@ -140,6 +191,66 @@
     randomForgotButton: document.querySelector("#randomForgotButton"),
     randomForgotLabel: document.querySelector("#randomForgotLabel"),
     randomNextLabel: document.querySelector("#randomNextLabel"),
+    battleButton: document.querySelector("#battleButton"),
+    battleModal: document.querySelector("#battleModal"),
+    battleSetup: document.querySelector("#battleSetup"),
+    battlePlay: document.querySelector("#battlePlay"),
+    battleResult: document.querySelector("#battleResult"),
+    battleScopeLabel: document.querySelector("#battleScopeLabel"),
+    battleScopeCount: document.querySelector("#battleScopeCount"),
+    battleHint: document.querySelector("#battleHint"),
+    battleStart: document.querySelector("#battleStart"),
+    onlinePanel: document.querySelector("#onlinePanel"),
+    onlineEntry: document.querySelector("#onlineEntry"),
+    onlineCreate: document.querySelector("#onlineCreate"),
+    onlineJoinToggle: document.querySelector("#onlineJoinToggle"),
+    onlineJoinPanel: document.querySelector("#onlineJoinPanel"),
+    onlineJoinInput: document.querySelector("#onlineJoinInput"),
+    onlineJoin: document.querySelector("#onlineJoin"),
+    onlineHostPanel: document.querySelector("#onlineHostPanel"),
+    onlineRoomNumber: document.querySelector("#onlineRoomNumber"),
+    onlineInvite: document.querySelector("#onlineInvite"),
+    onlineCopyInvite: document.querySelector("#onlineCopyInvite"),
+    onlineAnswerInput: document.querySelector("#onlineAnswerInput"),
+    onlineConnect: document.querySelector("#onlineConnect"),
+    onlineGuestPanel: document.querySelector("#onlineGuestPanel"),
+    onlineGuestRoom: document.querySelector("#onlineGuestRoom"),
+    onlineAnswer: document.querySelector("#onlineAnswer"),
+    onlineCopyAnswer: document.querySelector("#onlineCopyAnswer"),
+    onlineLeave: document.querySelector("#onlineLeave"),
+    onlineStatus: document.querySelector("#onlineStatus"),
+    battlePlayer1: document.querySelector("#battlePlayer1"),
+    battlePlayer1Avatar: document.querySelector("#battlePlayer1Avatar"),
+    battlePlayer1Name: document.querySelector("#battlePlayer1Name"),
+    battlePlayer1Score: document.querySelector("#battlePlayer1Score"),
+    battlePlayer2: document.querySelector("#battlePlayer2"),
+    battlePlayer2Avatar: document.querySelector("#battlePlayer2Avatar"),
+    battlePlayer2Name: document.querySelector("#battlePlayer2Name"),
+    battlePlayer2Score: document.querySelector("#battlePlayer2Score"),
+    battleRoundLabel: document.querySelector("#battleRoundLabel"),
+    battleTurnLabel: document.querySelector("#battleTurnLabel"),
+    battleTimer: document.querySelector("#battleTimer"),
+    battleTimerBar: document.querySelector("#battleTimerBar"),
+    battleTimerLabel: document.querySelector("#battleTimerLabel"),
+    battleQuestion: document.querySelector("#battleQuestion"),
+    battleQuestionType: document.querySelector("#battleQuestionType"),
+    battlePrompt: document.querySelector("#battlePrompt"),
+    battlePromptSub: document.querySelector("#battlePromptSub"),
+    battleOptions: document.querySelector("#battleOptions"),
+    battleFeedback: document.querySelector("#battleFeedback"),
+    battleFeedbackTitle: document.querySelector("#battleFeedbackTitle"),
+    battleAnswerCards: document.querySelector("#battleAnswerCards"),
+    battleWordReveal: document.querySelector("#battleWordReveal"),
+    battleNext: document.querySelector("#battleNext"),
+    battleHandoff: document.querySelector("#battleHandoff"),
+    battleHandoffTitle: document.querySelector("#battleHandoffTitle"),
+    battleHandoffText: document.querySelector("#battleHandoffText"),
+    battleHandoffNext: document.querySelector("#battleHandoffNext"),
+    battleResultTitle: document.querySelector("#battleResultTitle"),
+    battleResultScore: document.querySelector("#battleResultScore"),
+    battleResultStats: document.querySelector("#battleResultStats"),
+    battleReplay: document.querySelector("#battleReplay"),
+    battleBack: document.querySelector("#battleBack"),
     wordList: document.querySelector("#wordList"),
     emptyState: document.querySelector("#emptyState"),
     emptyReset: document.querySelector("#emptyReset"),
@@ -649,7 +760,7 @@
     return row;
   }
 
-  function updateHeading(filteredCount) {
+  function updateHeading(filteredCount, battleCount = filteredCount) {
     if (state.selectedList === "all") {
       elements.viewEyebrow.textContent = "全部词汇";
       elements.viewTitle.textContent = "大学英语四级核心词汇";
@@ -675,6 +786,11 @@
         ? `${filteredCount} 条结果 · ${filters.join(" · ")}`
         : `共 ${filteredCount} 个单词`;
     elements.randomWordButton.disabled = filteredCount === 0;
+    elements.battleButton.disabled = battleCount < 4;
+    elements.battleButton.title =
+      battleCount < 4
+        ? "当前范围至少需要 4 个不重复单词才能开始对战"
+        : "用当前词汇范围开始人机对战或同屏双人对战";
   }
 
   function randomScopeLabel() {
@@ -787,6 +903,7 @@
     activeRandomWord = null;
     randomMeaningRevealed = false;
     elements.randomModal.hidden = true;
+    syncModalScrollLock();
   }
 
   function openRandomWord() {
@@ -843,6 +960,1645 @@
     randomMeaningRevealed = false;
     renderRandomWord();
     elements.randomModal.hidden = false;
+    syncModalScrollLock();
+  }
+
+  function syncModalScrollLock() {
+    document.body.classList.toggle(
+      "modal-open",
+      !elements.randomModal.hidden || !elements.battleModal.hidden,
+    );
+  }
+
+  // 同一个单词可能在词表里出现两次（第 7 组复习词），出题时按拼写去重。
+  function uniqueBattleWords(items) {
+    const seen = new Set();
+    return items.filter((word) => {
+      const key = word.word.toLocaleLowerCase("en-US");
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function battleScopeText() {
+    const filters = [];
+    if (state.selectedList !== "all") {
+      const summary = listSummaries[Number(state.selectedList) - 1];
+      filters.push(summary ? `List ${summary.number}` : "当前列表");
+    }
+    if (state.part !== "all") {
+      filters.push(partLabels[state.part] || state.part);
+    }
+    if (state.favoritesOnly) {
+      filters.push("仅收藏");
+    }
+    if (state.query.trim()) {
+      filters.push(`搜索“${state.query.trim()}”`);
+    }
+    return filters.length ? filters.join(" · ") : "全部词汇";
+  }
+
+  function pickBattleDistractors(correct, pools, count) {
+    const used = new Set([correct]);
+    const result = [];
+    for (const pool of pools) {
+      for (const text of shuffleWords(pool)) {
+        if (result.length >= count) {
+          break;
+        }
+        if (!text || used.has(text)) {
+          continue;
+        }
+        used.add(text);
+        result.push(text);
+      }
+      if (result.length >= count) {
+        break;
+      }
+    }
+    return result;
+  }
+
+  function buildBattleQuestions(scopeWords, total) {
+    const chosen = shuffleWords(scopeWords).slice(0, total);
+    const types = chosen.map((_, index) =>
+      index % 2 === 0 ? "word-to-meaning" : "meaning-to-word",
+    );
+    const shuffledTypes = shuffleWords(types);
+
+    return chosen
+      .map((word, index) => {
+        const type = shuffledTypes[index];
+        const wordToMeaning = type === "word-to-meaning";
+        const correct = wordToMeaning ? word.meaning : word.word;
+        if (!correct) {
+          return null;
+        }
+        const scopePool = scopeWords.map((item) =>
+          wordToMeaning ? item.meaning : item.word,
+        );
+        const allPool = words.map((item) => (wordToMeaning ? item.meaning : item.word));
+        const distractors = pickBattleDistractors(correct, [scopePool, allPool], 3);
+        const options = shuffleWords([correct, ...distractors]).map((text) => ({
+          text,
+          correct: text === correct,
+        }));
+        return { type, word, correct, options };
+      })
+      .filter((question) => question && question.options.length === 4);
+  }
+
+  function onlineSupported() {
+    return typeof window.RTCPeerConnection === "function";
+  }
+
+  function setOnlineStatus(text) {
+    elements.onlineStatus.textContent = text;
+  }
+
+  function updateOnlinePanel() {
+    const isOnline = battleState.mode === "online";
+    elements.onlinePanel.hidden = !isOnline;
+    if (!isOnline) {
+      return;
+    }
+    const role = onlineState.role;
+    const hasRole = Boolean(role);
+    elements.onlineEntry.hidden = hasRole;
+    elements.onlineHostPanel.hidden = role !== "host";
+    elements.onlineGuestPanel.hidden = role !== "guest";
+    elements.onlineLeave.hidden = !hasRole;
+    elements.onlineCreate.disabled = hasRole;
+    elements.onlineJoinToggle.disabled = hasRole;
+    elements.onlineRoomNumber.textContent = onlineState.roomNumber || "----";
+    elements.onlineGuestRoom.textContent = onlineState.roomNumber || "----";
+    if (hasRole) {
+      elements.onlineJoinPanel.hidden = true;
+    }
+  }
+
+  function clearOnlineStartTimer() {
+    if (onlineState.startTimer) {
+      window.clearTimeout(onlineState.startTimer);
+      onlineState.startTimer = 0;
+    }
+  }
+
+  function sendOnlineMessage(payload) {
+    const channel = onlineState.channel;
+    if (!channel || channel.readyState !== "open") {
+      return false;
+    }
+    try {
+      channel.send(JSON.stringify(payload));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function teardownOnlineConnection() {
+    clearOnlineStartTimer();
+    const channel = onlineState.channel;
+    const pc = onlineState.pc;
+    onlineState.channel = null;
+    onlineState.pc = null;
+    onlineState.role = null;
+    onlineState.connected = false;
+    onlineState.roomNumber = "";
+    onlineState.localAnswered = false;
+    onlineState.remoteAnswered = false;
+    onlineState.remoteChoice = null;
+    onlineState.revealed = false;
+    onlineState.hostTotal = 0;
+    onlineState.scopeLabel = "";
+    if (channel) {
+      try {
+        channel.close();
+      } catch {
+        // Ignore a channel that is already closed.
+      }
+    }
+    if (pc) {
+      try {
+        pc.close();
+      } catch {
+        // Ignore a peer connection that is already closed.
+      }
+    }
+    elements.onlineInvite.value = "";
+    elements.onlineAnswerInput.value = "";
+    elements.onlineAnswer.value = "";
+    elements.onlineJoinInput.value = "";
+    updateOnlinePanel();
+  }
+
+  function leaveOnlineRoom(options = {}) {
+    const { notify = true, silent = false } = options;
+    if (notify) {
+      sendOnlineMessage({ type: "leave" });
+    }
+    teardownOnlineConnection();
+    if (silent) {
+      return;
+    }
+    if (battleState.active) {
+      stopBattleTimer();
+      battleState.active = false;
+      battleState.phase = "setup";
+      battleState.questions = [];
+      battleState.index = 0;
+      battleState.scores = [0, 0];
+      battleState.answers = [null, null];
+      elements.battlePlay.hidden = true;
+      elements.battleResult.hidden = true;
+      elements.battleSetup.hidden = false;
+    }
+    setOnlineStatus("已离开房间。");
+    refreshBattleSetup();
+  }
+
+  async function copyOnlineText(text, label) {
+    if (!text) {
+      return;
+    }
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        showToast(`${label}已复制。`);
+        return;
+      }
+    } catch {
+      // Fall back to a temporary textarea below.
+    }
+    const helper = document.createElement("textarea");
+    helper.value = text;
+    helper.setAttribute("readonly", "");
+    helper.style.position = "fixed";
+    helper.style.opacity = "0";
+    document.body.append(helper);
+    helper.select();
+    let copied = false;
+    try {
+      copied = document.execCommand("copy");
+    } catch {
+      copied = false;
+    }
+    helper.remove();
+    showToast(copied ? `${label}已复制。` : `复制失败，请手动选择${label}。`);
+  }
+
+  function encodeOnlineSignal(sdp) {
+    const bytes = new TextEncoder().encode(sdp);
+    let binary = "";
+    bytes.forEach((byte) => {
+      binary += String.fromCharCode(byte);
+    });
+    return `${onlineSignalPrefix}${btoa(binary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "")}`;
+  }
+
+  function decodeOnlineSignal(code) {
+    const trimmed = String(code || "").replace(/\s+/g, "");
+    if (!trimmed.startsWith(onlineSignalPrefix)) {
+      throw new Error("邀请码格式不正确");
+    }
+    const raw = trimmed
+      .slice(onlineSignalPrefix.length)
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+    const padded = raw + "=".repeat((4 - (raw.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  }
+
+  function waitForOnlineIce(pc) {
+    return new Promise((resolve) => {
+      if (pc.iceGatheringState === "complete") {
+        resolve();
+        return;
+      }
+      let settled = false;
+      const finish = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        window.clearTimeout(timer);
+        resolve();
+      };
+      const timer = window.setTimeout(finish, 2600);
+      pc.addEventListener("icegatheringstatechange", () => {
+        if (pc.iceGatheringState === "complete") {
+          finish();
+        }
+      });
+      pc.addEventListener("icecandidate", (event) => {
+        if (!event.candidate) {
+          finish();
+        }
+      });
+    });
+  }
+
+  function randomOnlineRoomNumber() {
+    return String(Math.floor(1000 + Math.random() * 9000));
+  }
+
+  function bindOnlineChannel(channel) {
+    onlineState.channel = channel;
+    channel.onopen = handleOnlineChannelOpen;
+    channel.onmessage = (event) => handleOnlineMessage(event.data);
+    channel.onclose = () => handleOnlineDisconnect("联机连接已断开。");
+    channel.onerror = () => handleOnlineDisconnect("联机连接出错。");
+    if (channel.readyState === "open") {
+      handleOnlineChannelOpen();
+    }
+  }
+
+  function handleOnlineChannelOpen() {
+    if (onlineState.connected) {
+      return;
+    }
+    onlineState.connected = true;
+    if (onlineState.role === "host") {
+      const scopeSize = uniqueBattleWords(getFilteredWords()).length;
+      onlineState.hostTotal = Math.min(battleState.questionCount, scopeSize);
+      onlineState.scopeLabel = battleScopeText();
+      sendOnlineMessage({
+        type: "welcome",
+        roomNumber: onlineState.roomNumber,
+        questionCount: onlineState.hostTotal,
+        scopeLabel: onlineState.scopeLabel,
+      });
+      setOnlineStatus("对手已连接，可以开始对战。");
+    } else {
+      setOnlineStatus("已连接房主，等待房主开始。");
+    }
+    refreshBattleSetup();
+  }
+
+  function handleOnlineDisconnect(reason) {
+    if (!onlineState.role) {
+      return;
+    }
+    const wasActive = battleState.active;
+    teardownOnlineConnection();
+    if (wasActive) {
+      stopBattleTimer();
+      battleState.active = false;
+      battleState.phase = "setup";
+      battleState.questions = [];
+      battleState.index = 0;
+      battleState.scores = [0, 0];
+      battleState.answers = [null, null];
+      elements.battlePlay.hidden = true;
+      elements.battleResult.hidden = true;
+      elements.battleSetup.hidden = false;
+    }
+    setOnlineStatus(reason);
+    showToast(reason);
+    refreshBattleSetup();
+  }
+
+  function handleOnlineMessage(raw) {
+    let message;
+    try {
+      message = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (!message || typeof message.type !== "string") {
+      return;
+    }
+    switch (message.type) {
+      case "welcome":
+        if (onlineState.role !== "guest") {
+          return;
+        }
+        onlineState.roomNumber = String(message.roomNumber || "");
+        onlineState.hostTotal = Number(message.questionCount) || 0;
+        onlineState.scopeLabel = String(message.scopeLabel || "");
+        elements.onlineGuestRoom.textContent = onlineState.roomNumber || "----";
+        setOnlineStatus("已连接房主，等待房主开始。");
+        refreshBattleSetup();
+        break;
+      case "start":
+        applyOnlineStart(message);
+        break;
+      case "answer":
+        if (
+          onlineState.role === "host" &&
+          battleState.phase === "question" &&
+          !onlineState.remoteAnswered
+        ) {
+          const question = battleState.questions[battleState.index];
+          const choice = Number.isInteger(message.choice)
+            ? question?.options[message.choice]
+            : null;
+          onlineState.remoteAnswered = true;
+          onlineState.remoteChoice = choice ? choice.text : null;
+          if (onlineState.localAnswered) {
+            scheduleOnlineReveal();
+          } else {
+            setOnlineStatus("对手已作答，轮到你。");
+            updateBattleTurn();
+          }
+        }
+        break;
+      case "timeout":
+        if (
+          onlineState.role === "host" &&
+          battleState.phase === "question" &&
+          !onlineState.remoteAnswered
+        ) {
+          onlineState.remoteAnswered = true;
+          onlineState.remoteChoice = null;
+          if (onlineState.localAnswered) {
+            scheduleOnlineReveal();
+          } else {
+            setOnlineStatus("对手已超时，请作答。");
+            updateBattleTurn();
+          }
+        }
+        break;
+      case "peer-ready":
+        if (onlineState.role === "guest" && battleState.phase === "question") {
+          onlineState.remoteAnswered = true;
+          setOnlineStatus("对手已作答，轮到你。");
+          updateBattleTurn();
+        }
+        break;
+      case "reveal":
+        applyOnlineReveal(message);
+        break;
+      case "next":
+        if (onlineState.role === "guest" && Number.isInteger(message.index)) {
+          scheduleOnlineQuestion(message.index, false);
+        }
+        break;
+      case "begin":
+        if (
+          onlineState.role === "guest" &&
+          battleState.active &&
+          battleState.phase === "starting" &&
+          Number.isInteger(message.index)
+        ) {
+          clearOnlineStartTimer();
+          beginOnlineQuestion(message.index);
+        }
+        break;
+      case "result":
+        if (onlineState.role === "guest") {
+          battleState.scores = [
+            Number(message.guestScore) || 0,
+            Number(message.hostScore) || 0,
+          ];
+          showBattleResult();
+        }
+        break;
+      case "leave":
+        handleOnlineDisconnect("对手已离开房间。");
+        break;
+      default:
+        break;
+    }
+  }
+
+  async function createOnlineRoom() {
+    if (!onlineSupported()) {
+      showToast("当前浏览器不支持联机对战。");
+      return;
+    }
+    if (battleState.mode !== "online") {
+      return;
+    }
+    teardownOnlineConnection();
+    onlineState.role = "host";
+    onlineState.roomNumber = randomOnlineRoomNumber();
+    battleState.scopeWords = uniqueBattleWords(getFilteredWords());
+    updateOnlinePanel();
+    setOnlineStatus("正在创建房间，请稍候…");
+    try {
+      const pc = new RTCPeerConnection(onlineRtcConfig);
+      onlineState.pc = pc;
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === "failed") {
+          handleOnlineDisconnect("联机连接中断。");
+        }
+      };
+      const channel = pc.createDataChannel("battle", { ordered: true });
+      bindOnlineChannel(channel);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await waitForOnlineIce(pc);
+      if (!pc.localDescription) {
+        throw new Error("没有生成邀请码");
+      }
+      elements.onlineInvite.value = encodeOnlineSignal(pc.localDescription.sdp);
+      setOnlineStatus("等待对手生成应答码…");
+      refreshBattleSetup();
+    } catch {
+      teardownOnlineConnection();
+      setOnlineStatus("创建房间失败，请重试。");
+      showToast("创建房间失败，请检查浏览器是否支持 WebRTC。");
+      refreshBattleSetup();
+    }
+  }
+
+  async function joinOnlineRoom() {
+    if (!onlineSupported()) {
+      showToast("当前浏览器不支持联机对战。");
+      return;
+    }
+    let offerSdp;
+    try {
+      offerSdp = decodeOnlineSignal(elements.onlineJoinInput.value);
+    } catch {
+      setOnlineStatus("邀请码无效，请检查后重试。");
+      showToast("邀请码无效，请检查后重试。");
+      return;
+    }
+    teardownOnlineConnection();
+    onlineState.role = "guest";
+    updateOnlinePanel();
+    setOnlineStatus("正在生成应答码…");
+    try {
+      const pc = new RTCPeerConnection(onlineRtcConfig);
+      onlineState.pc = pc;
+      pc.ondatachannel = (event) => bindOnlineChannel(event.channel);
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === "failed") {
+          handleOnlineDisconnect("联机连接中断。");
+        }
+      };
+      await pc.setRemoteDescription({ type: "offer", sdp: offerSdp });
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await waitForOnlineIce(pc);
+      if (!pc.localDescription) {
+        throw new Error("没有生成应答码");
+      }
+      elements.onlineAnswer.value = encodeOnlineSignal(pc.localDescription.sdp);
+      setOnlineStatus("把应答码发回房主，等待连接…");
+      refreshBattleSetup();
+    } catch {
+      teardownOnlineConnection();
+      setOnlineStatus("生成应答码失败，请重试。");
+      showToast("生成应答码失败，请重试。");
+      refreshBattleSetup();
+    }
+  }
+
+  async function connectOnlineRoom() {
+    if (onlineState.role !== "host" || !onlineState.pc) {
+      return;
+    }
+    let answerSdp;
+    try {
+      answerSdp = decodeOnlineSignal(elements.onlineAnswerInput.value);
+    } catch {
+      setOnlineStatus("应答码无效，请检查后重试。");
+      showToast("应答码无效，请检查后重试。");
+      return;
+    }
+    setOnlineStatus("正在建立连接…");
+    try {
+      await onlineState.pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
+    } catch {
+      setOnlineStatus("应答码无效，请检查后重试。");
+      showToast("应答码无效，请检查后重试。");
+    }
+  }
+
+  function serializeOnlineQuestion(question) {
+    return {
+      type: question.type,
+      correct: question.correct,
+      word: {
+        id: question.word.id,
+        word: question.word.word,
+        meaning: question.word.meaning,
+        part: question.word.part,
+        usphone: question.word.usphone,
+        ukphone: question.word.ukphone,
+        partKeys: Array.from(question.word.partKeys || []),
+      },
+      options: question.options.map((option) => ({
+        text: option.text,
+        correct: Boolean(option.correct),
+      })),
+    };
+  }
+
+  function normalizeOnlineQuestion(raw) {
+    if (!raw || !raw.word || !raw.word.word || !raw.word.meaning) {
+      return null;
+    }
+    if (!Array.isArray(raw.options) || raw.options.length !== 4) {
+      return null;
+    }
+    const options = raw.options.map((option) => ({
+      text: String(option?.text || ""),
+      correct: Boolean(option?.correct),
+    }));
+    if (options.some((option) => !option.text)) {
+      return null;
+    }
+    return {
+      type: raw.type === "meaning-to-word" ? "meaning-to-word" : "word-to-meaning",
+      correct:
+        typeof raw.correct === "string" && raw.correct
+          ? raw.correct
+          : options.find((option) => option.correct)?.text || "",
+      word: {
+        id: raw.word.id,
+        word: String(raw.word.word),
+        meaning: String(raw.word.meaning),
+        part: String(raw.word.part || ""),
+        usphone: String(raw.word.usphone || ""),
+        ukphone: String(raw.word.ukphone || ""),
+        partKeys: new Set(Array.isArray(raw.word.partKeys) ? raw.word.partKeys : []),
+      },
+      options,
+    };
+  }
+
+  function startOnlineBattle() {
+    if (battleState.mode !== "online") {
+      return;
+    }
+    if (onlineState.role !== "host") {
+      showToast("等待房主开始对战。");
+      return;
+    }
+    if (!onlineState.connected) {
+      showToast("请先让对手加入房间。");
+      return;
+    }
+    const scopeWords = uniqueBattleWords(getFilteredWords());
+    if (scopeWords.length < 4) {
+      showToast("当前范围至少需要 4 个不重复单词。");
+      return;
+    }
+    const total = Math.min(battleState.questionCount, scopeWords.length);
+    const questions = buildBattleQuestions(scopeWords, total);
+    if (questions.length < 4) {
+      showToast("当前范围可出的题目不足。");
+      return;
+    }
+    const startPayload = {
+      type: "start",
+      total: questions.length,
+      scopeLabel: battleScopeText(),
+      questions: questions.map(serializeOnlineQuestion),
+    };
+    if (!sendOnlineMessage(startPayload)) {
+      showToast("对手连接已断开。");
+      return;
+    }
+    battleState.scopeWords = scopeWords;
+    battleState.questions = questions;
+    battleState.index = 0;
+    battleState.scores = [0, 0];
+    battleState.answers = [null, null];
+    battleState.optionOrder = [];
+    battleState.actor = 0;
+    battleState.phase = "starting";
+    battleState.active = true;
+    battleState.names = ["你", "对手"];
+    battleState.avatars = ["你", "对"];
+    onlineState.localAnswered = false;
+    onlineState.remoteAnswered = false;
+    onlineState.remoteChoice = null;
+    onlineState.revealed = false;
+    elements.battleSetup.hidden = true;
+    elements.battleResult.hidden = true;
+    elements.battlePlay.hidden = false;
+    updateBattleScoreboard();
+    updateBattleTurn();
+    setOnlineStatus("对战开始。");
+    scheduleOnlineQuestion(0);
+  }
+
+  function applyOnlineStart(message) {
+    if (onlineState.role !== "guest" || !Array.isArray(message.questions)) {
+      return;
+    }
+    const questions = message.questions
+      .map(normalizeOnlineQuestion)
+      .filter(Boolean);
+    if (questions.length < 4) {
+      handleOnlineDisconnect("房主发来的题目无效。");
+      return;
+    }
+    battleState.mode = "online";
+    battleState.questions = questions;
+    battleState.index = 0;
+    battleState.scores = [0, 0];
+    battleState.answers = [null, null];
+    battleState.optionOrder = [];
+    battleState.actor = 0;
+    battleState.phase = "starting";
+    battleState.active = true;
+    battleState.names = ["你", "对手"];
+    battleState.avatars = ["你", "对"];
+    onlineState.hostTotal = questions.length;
+    onlineState.scopeLabel = String(message.scopeLabel || "");
+    onlineState.localAnswered = false;
+    onlineState.remoteAnswered = false;
+    onlineState.remoteChoice = null;
+    onlineState.revealed = false;
+    elements.battleReplay.disabled = false;
+    elements.battleReplay.textContent = "再来一局";
+    elements.battleBack.textContent = "离开房间";
+    elements.battleSetup.hidden = true;
+    elements.battleResult.hidden = true;
+    elements.battlePlay.hidden = false;
+    updateBattleScoreboard();
+    updateBattleTurn();
+    setOnlineStatus("对战开始。");
+    scheduleOnlineQuestion(0, false);
+  }
+
+  function scheduleOnlineQuestion(index, autoStart = true) {
+    if (!battleState.active || battleState.mode !== "online") {
+      return;
+    }
+    clearOnlineStartTimer();
+    stopBattleTimer();
+    battleState.phase = "starting";
+    battleState.index = index;
+    battleState.answers = [null, null];
+    onlineState.localAnswered = false;
+    onlineState.remoteAnswered = false;
+    onlineState.remoteChoice = null;
+    onlineState.revealed = false;
+    elements.battleFeedback.hidden = true;
+    elements.battleHandoff.hidden = true;
+    elements.battleResult.hidden = true;
+    elements.battleQuestion.hidden = false;
+    elements.battleOptions.hidden = true;
+    elements.battleQuestionType.textContent = "准备开始";
+    elements.battlePrompt.lang = "zh-CN";
+    elements.battlePrompt.classList.remove("is-word");
+    elements.battlePrompt.classList.add("is-meaning");
+    elements.battlePrompt.textContent = "准备开始";
+    elements.battlePromptSub.textContent = "题目即将出现";
+    elements.battleRoundLabel.textContent = `第 ${index + 1} / ${battleState.questions.length} 题`;
+    elements.battleTimerLabel.textContent = "…";
+    elements.battleTimerLabel.classList.remove("is-urgent");
+    elements.battleTimer.classList.remove("is-urgent");
+    elements.battleTimerBar.style.width = "0%";
+    updateBattleScoreboard();
+    updateBattleTurn();
+    if (autoStart) {
+      onlineState.startTimer = window.setTimeout(() => {
+        onlineState.startTimer = 0;
+        beginOnlineQuestion(index);
+      }, onlineStartDelay);
+    }
+  }
+
+  function beginOnlineQuestion(index) {
+    if (
+      !battleState.active ||
+      battleState.mode !== "online" ||
+      !onlineState.connected
+    ) {
+      return;
+    }
+    const question = battleState.questions[index];
+    if (!question) {
+      return;
+    }
+    battleState.index = index;
+    battleState.phase = "question";
+    battleState.actor = 0;
+    battleState.answers = [null, null];
+    battleState.optionOrder = question.options.map((_, optionIndex) => optionIndex);
+    onlineState.localAnswered = false;
+    onlineState.remoteAnswered = false;
+    onlineState.remoteChoice = null;
+    onlineState.revealed = false;
+    elements.battleFeedback.hidden = true;
+    elements.battleHandoff.hidden = true;
+    elements.battleResult.hidden = true;
+    elements.battleQuestion.hidden = false;
+    elements.battleOptions.hidden = false;
+    elements.battleRoundLabel.textContent = `第 ${index + 1} / ${battleState.questions.length} 题`;
+    renderBattlePrompt(question);
+    renderBattleOptionButtons(question, null, false);
+    updateBattleScoreboard();
+    updateBattleTurn();
+    startBattleTimer();
+    const firstOption = elements.battleOptions.querySelector("button");
+    if (firstOption) {
+      firstOption.focus({ preventScroll: true });
+    }
+    if (onlineState.role === "host") {
+      sendOnlineMessage({ type: "begin", index });
+    }
+  }
+
+  function submitOnlineAnswer(optionIndex) {
+    if (
+      !battleState.active ||
+      battleState.phase !== "question" ||
+      onlineState.localAnswered
+    ) {
+      return;
+    }
+    const question = battleState.questions[battleState.index];
+    const option = optionIndex === null ? null : question.options[optionIndex];
+    if (optionIndex !== null && !option) {
+      return;
+    }
+    onlineState.localAnswered = true;
+    battleState.answers[0] = option ? option.text : null;
+    elements.battleOptions.querySelectorAll("button").forEach((button) => {
+      button.disabled = true;
+      if (option && Number(button.dataset.battleOption) === optionIndex) {
+        button.classList.add("is-pending");
+      }
+    });
+    updateBattleTurn();
+    if (onlineState.role === "guest") {
+      if (option) {
+        sendOnlineMessage({ type: "answer", choice: optionIndex });
+      } else {
+        sendOnlineMessage({ type: "timeout" });
+      }
+      setOnlineStatus(option ? "已作答，等待房主揭晓。" : "时间到，等待房主揭晓。");
+      return;
+    }
+    if (onlineState.remoteAnswered) {
+      revealOnlineQuestion();
+    } else {
+      sendOnlineMessage({ type: "peer-ready" });
+      setOnlineStatus("已作答，等待对手…");
+      updateBattleTurn();
+    }
+  }
+
+  function handleOnlineTimeout() {
+    if (!battleState.active || battleState.phase !== "question") {
+      return;
+    }
+    if (onlineState.role === "guest") {
+      if (onlineState.localAnswered) {
+        updateBattleTurn();
+        return;
+      }
+      onlineState.localAnswered = true;
+      battleState.answers[0] = null;
+      elements.battleOptions.querySelectorAll("button").forEach((button) => {
+        button.disabled = true;
+      });
+      updateBattleTurn();
+      sendOnlineMessage({ type: "timeout" });
+      setOnlineStatus("时间到，等待房主揭晓。");
+      return;
+    }
+    if (!onlineState.localAnswered) {
+      onlineState.localAnswered = true;
+      battleState.answers[0] = null;
+    }
+    if (!onlineState.remoteAnswered) {
+      onlineState.remoteAnswered = true;
+      onlineState.remoteChoice = null;
+    }
+    revealOnlineQuestion();
+  }
+
+  function scheduleOnlineReveal() {
+    revealOnlineQuestion();
+  }
+
+  function revealOnlineQuestion() {
+    if (
+      onlineState.role !== "host" ||
+      !battleState.active ||
+      battleState.phase !== "question" ||
+      onlineState.revealed
+    ) {
+      return;
+    }
+    const question = battleState.questions[battleState.index];
+    if (!question) {
+      return;
+    }
+    onlineState.revealed = true;
+    stopBattleTimer();
+    const hostChoice = battleState.answers[0] || null;
+    const guestChoice = onlineState.remoteChoice || null;
+    battleState.answers = [hostChoice, guestChoice];
+    if (hostChoice === question.correct) {
+      battleState.scores[0] += 1;
+    }
+    if (guestChoice === question.correct) {
+      battleState.scores[1] += 1;
+    }
+    sendOnlineMessage({
+      type: "reveal",
+      hostChoice,
+      guestChoice,
+      hostScore: battleState.scores[0],
+      guestScore: battleState.scores[1],
+    });
+    setOnlineStatus("答案已揭晓。");
+    renderBattleFeedback({ skipScore: true });
+  }
+
+  function applyOnlineReveal(message) {
+    if (
+      onlineState.role !== "guest" ||
+      !battleState.active ||
+      battleState.phase !== "question"
+    ) {
+      return;
+    }
+    stopBattleTimer();
+    onlineState.revealed = true;
+    onlineState.localAnswered = true;
+    onlineState.remoteAnswered = true;
+    battleState.answers = [
+      message.guestChoice ?? null,
+      message.hostChoice ?? null,
+    ];
+    battleState.scores = [
+      Number(message.guestScore) || 0,
+      Number(message.hostScore) || 0,
+    ];
+    setOnlineStatus("答案已揭晓。");
+    renderBattleFeedback({ skipScore: true });
+  }
+
+  function nextOnlineQuestion() {
+    if (onlineState.role !== "host") {
+      showToast("等待房主开始下一题。");
+      return;
+    }
+    if (battleState.phase !== "feedback") {
+      return;
+    }
+    if (battleState.index + 1 >= battleState.questions.length) {
+      sendOnlineMessage({
+        type: "result",
+        hostScore: battleState.scores[0],
+        guestScore: battleState.scores[1],
+      });
+      showBattleResult();
+      return;
+    }
+    const nextIndex = battleState.index + 1;
+    sendOnlineMessage({ type: "next", index: nextIndex });
+    scheduleOnlineQuestion(nextIndex);
+  }
+
+  function refreshBattleSetup() {
+    const scope = uniqueBattleWords(getFilteredWords());
+    const isOnline = battleState.mode === "online";
+    const role = onlineState.role;
+    battleState.scopeWords = scope;
+    elements.battleScopeLabel.textContent =
+      isOnline && role === "guest" && onlineState.connected
+        ? onlineState.scopeLabel || "房主范围"
+        : battleScopeText();
+    elements.battleScopeCount.textContent =
+      isOnline && role === "guest" && onlineState.connected
+        ? onlineState.hostTotal
+          ? `${onlineState.hostTotal} 题`
+          : "以房主为准"
+        : `${scope.length} 个可出题单词`;
+
+    elements.battleModal.querySelectorAll("[data-battle-mode]").forEach((button) => {
+      const selected = button.dataset.battleMode === battleState.mode;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", selected ? "true" : "false");
+    });
+    elements.battleModal.querySelectorAll("[data-battle-count]").forEach((button) => {
+      const selected = Number(button.dataset.battleCount) === battleState.questionCount;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", selected ? "true" : "false");
+      button.disabled = isOnline && role === "guest";
+    });
+
+    updateOnlinePanel();
+    const supported = onlineSupported();
+    if (!supported) {
+      elements.onlineCreate.disabled = true;
+      elements.onlineJoinToggle.disabled = true;
+      elements.onlineJoin.disabled = true;
+    }
+
+    const enough = scope.length >= 4;
+    let canStart = enough;
+    let startLabel =
+      battleState.mode === "ai"
+        ? "开始人机对战"
+        : battleState.mode === "duo"
+          ? "开始双人对战"
+          : "开始联机对战";
+    if (isOnline) {
+      if (role === "host") {
+        canStart = enough && onlineState.connected;
+        startLabel = onlineState.connected ? "开始联机对战" : "等待对手连接";
+      } else if (role === "guest") {
+        canStart = false;
+        startLabel = onlineState.connected ? "等待房主开始" : "等待连接";
+      } else {
+        canStart = false;
+        startLabel = "请先创建或加入房间";
+      }
+    }
+    elements.battleStart.disabled = !canStart;
+    elements.battleStart.textContent = startLabel;
+
+    if (isOnline) {
+      let hint;
+      if (!supported) {
+        hint = "当前浏览器不支持 WebRTC，无法使用联机对战。";
+      } else if (!role) {
+        hint =
+          "点“创建房间”生成邀请码；加入房间则粘贴邀请码并生成应答码。邀请码和应答码通过聊天工具互发。";
+      } else if (role === "host") {
+        hint = onlineState.connected
+          ? `对手已连接 · ${scope.length} 个可出题单词 · 每题 15 秒，双方同时作答。`
+          : "房间已创建。把邀请码发给对手，粘贴对手的应答码后点击连接。";
+      } else {
+        hint = onlineState.connected
+          ? "已连接房主。房主开始后，双方同时作答，由房主统一揭晓答案。"
+          : "把应答码发回房主，等待连接。";
+      }
+      if (role === "host" && !enough) {
+        hint = "当前范围不足 4 个不重复单词，请更换 List 或清除筛选后再来。";
+      }
+      elements.battleHint.textContent = hint;
+      return;
+    }
+
+    const actual = Math.min(battleState.questionCount, scope.length);
+    if (!enough) {
+      elements.battleHint.textContent =
+        "当前范围不足 4 个不重复单词，请更换 List 或清除筛选后再来。";
+      return;
+    }
+
+    let hint =
+      battleState.mode === "ai"
+        ? "电脑正确率约 65% · 每题 15 秒，超时算答错。"
+        : "两位玩家答同一组题，每题各 15 秒；双方都作答后揭晓答案。";
+    if (actual < battleState.questionCount) {
+      hint += ` 当前范围只有 ${scope.length} 个词，本局 ${actual} 题。`;
+    }
+    elements.battleHint.textContent = hint;
+  }
+
+  function openBattle() {
+    const scope = uniqueBattleWords(getFilteredWords());
+    if (scope.length < 4) {
+      showToast("当前范围至少需要 4 个不重复单词才能开始对战。");
+      return;
+    }
+
+    if (onlineState.role) {
+      leaveOnlineRoom({ notify: true, silent: true });
+    }
+    if (!elements.randomModal.hidden) {
+      closeRandomWord();
+    }
+    stopBattleTimer();
+    battleState.active = false;
+    battleState.phase = "setup";
+    battleState.scopeWords = scope;
+    battleState.questions = [];
+    battleState.index = 0;
+    battleState.scores = [0, 0];
+    battleState.answers = [null, null];
+    battleState.aiAnswer = null;
+    elements.battleReplay.disabled = false;
+    elements.battleReplay.textContent = "再来一局";
+    elements.battleBack.textContent = battleState.mode === "online" ? "离开房间" : "返回设置";
+    if (
+      battleState.mode === "online" &&
+      !onlineState.role
+    ) {
+      setOnlineStatus("创建房间或加入房间。");
+    }
+
+    elements.battleSetup.hidden = false;
+    elements.battlePlay.hidden = true;
+    elements.battleResult.hidden = true;
+    elements.battleModal.hidden = false;
+    refreshBattleSetup();
+    syncModalScrollLock();
+    if (elements.battleStart.disabled) {
+      const modeButton = elements.battleModal.querySelector("[data-battle-mode]");
+      if (modeButton) {
+        modeButton.focus();
+      }
+    } else {
+      elements.battleStart.focus();
+    }
+  }
+
+  function closeBattle() {
+    if (onlineState.role) {
+      leaveOnlineRoom({ notify: true, silent: true });
+    }
+    stopBattleTimer();
+    battleState.active = false;
+    battleState.phase = "setup";
+    elements.battleModal.hidden = true;
+    syncModalScrollLock();
+    elements.battleButton.focus();
+  }
+
+  function startBattle() {
+    if (battleState.mode === "online") {
+      startOnlineBattle();
+      return;
+    }
+    const scope = battleState.scopeWords.length
+      ? battleState.scopeWords
+      : uniqueBattleWords(getFilteredWords());
+    if (scope.length < 4) {
+      refreshBattleSetup();
+      showToast("当前范围至少需要 4 个不重复单词才能开始对战。");
+      return;
+    }
+
+    const total = Math.min(battleState.questionCount, scope.length);
+    const questions = buildBattleQuestions(scope, total);
+    if (questions.length < 4) {
+      showToast("题目生成失败，请换一个范围再试。");
+      return;
+    }
+
+    battleState.scopeWords = scope;
+    battleState.questions = questions;
+    battleState.index = 0;
+    battleState.scores = [0, 0];
+    battleState.answers = [null, null];
+    battleState.aiAnswer = null;
+    battleState.active = true;
+    battleState.phase = "question";
+    battleState.actor = 0;
+    battleState.names = battleState.mode === "ai" ? ["你", "电脑"] : ["玩家 1", "玩家 2"];
+    battleState.avatars = battleState.mode === "ai" ? ["你", "AI"] : ["1", "2"];
+
+    elements.battleSetup.hidden = true;
+    elements.battlePlay.hidden = false;
+    elements.battleResult.hidden = true;
+    updateBattleScoreboard();
+    beginBattleTurn(0);
+  }
+
+  function updateBattleScoreboard() {
+    elements.battlePlayer1Avatar.textContent = battleState.avatars[0];
+    elements.battlePlayer2Avatar.textContent = battleState.avatars[1];
+    elements.battlePlayer1Name.textContent = battleState.names[0];
+    elements.battlePlayer2Name.textContent = battleState.names[1];
+    elements.battlePlayer1Score.textContent = String(battleState.scores[0]);
+    elements.battlePlayer2Score.textContent = String(battleState.scores[1]);
+    elements.battlePlayer2.classList.toggle("is-ai", battleState.mode === "ai");
+    const inQuestion = battleState.phase === "question";
+    const onlineTurn =
+      battleState.mode === "online" &&
+      (battleState.phase === "question" || battleState.phase === "starting");
+    elements.battlePlayer1.classList.toggle(
+      "is-active",
+      onlineTurn || (inQuestion && battleState.actor === 0),
+    );
+    elements.battlePlayer2.classList.toggle(
+      "is-active",
+      onlineTurn || (inQuestion && battleState.actor === 1),
+    );
+  }
+
+  function updateBattleTurn() {
+    let text;
+    if (battleState.phase === "feedback") {
+      text = "本题结束";
+    } else if (battleState.phase === "starting") {
+      text = "准备开始";
+    } else if (battleState.mode === "online") {
+      if (!onlineState.connected) {
+        text = "等待连接";
+      } else if (onlineState.localAnswered) {
+        text =
+          battleState.answers[0] === null ? "已超时，等待对手…" : "已作答，等待对手…";
+      } else if (onlineState.remoteAnswered) {
+        text =
+          onlineState.role === "host" && !onlineState.remoteChoice
+            ? "对手已超时，轮到你"
+            : "对手已作答，轮到你";
+      } else {
+        text = "同时作答";
+      }
+    } else if (battleState.phase === "handoff") {
+      text = `${battleState.names[0]} 已作答`;
+    } else if (battleState.mode === "ai") {
+      text = "轮到你";
+    } else {
+      text = battleState.actor === 0 ? "玩家 1 作答" : "玩家 2 作答";
+    }
+    elements.battleTurnLabel.textContent = text;
+  }
+
+  function renderBattlePrompt(question) {
+    const wordToMeaning = question.type === "word-to-meaning";
+    elements.battleQuestionType.textContent = wordToMeaning ? "英译中" : "中译英";
+    elements.battlePrompt.textContent = wordToMeaning
+      ? question.word.word
+      : question.word.meaning;
+    elements.battlePrompt.lang = wordToMeaning ? "en" : "zh-CN";
+    elements.battlePrompt.classList.toggle("is-word", wordToMeaning);
+    elements.battlePrompt.classList.toggle("is-meaning", !wordToMeaning);
+    elements.battlePromptSub.textContent = wordToMeaning
+      ? "选出正确的中文释义"
+      : "选出对应的英文单词";
+  }
+
+  function renderBattleOptionButtons(question, selectedText, reveal) {
+    const fragment = document.createDocumentFragment();
+    battleState.optionOrder.forEach((optionIndex, position) => {
+      const option = question.options[optionIndex];
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "battle-option";
+      button.dataset.battleOption = String(optionIndex);
+      button.disabled = Boolean(reveal);
+      if (reveal) {
+        if (option.correct) {
+          button.classList.add("is-correct");
+        }
+        if (!option.correct && option.text === selectedText) {
+          button.classList.add("is-wrong");
+        }
+        if (option.correct && option.text === selectedText) {
+          button.classList.add("is-selected");
+        }
+      }
+
+      const key = document.createElement("span");
+      key.className = "battle-option-key";
+      key.textContent = String.fromCharCode(65 + position);
+      const text = document.createElement("span");
+      text.className = "battle-option-text";
+      text.textContent = option.text;
+      button.append(key, text);
+      button.setAttribute("aria-label", `${key.textContent}. ${option.text}`);
+      fragment.append(button);
+    });
+    elements.battleOptions.replaceChildren(fragment);
+  }
+
+  function beginBattleTurn(actor) {
+    const question = battleState.questions[battleState.index];
+    if (!question) {
+      showBattleResult();
+      return;
+    }
+
+    battleState.phase = "question";
+    battleState.actor = actor;
+    if (actor === 0) {
+      battleState.aiAnswer =
+        battleState.mode === "ai" ? pickBattleAiAnswer(question) : null;
+    }
+    battleState.optionOrder = shuffleWords(
+      question.options.map((_, index) => index),
+    );
+
+    renderBattlePrompt(question);
+    renderBattleOptionButtons(question, null, false);
+    elements.battleQuestion.hidden = false;
+    elements.battleOptions.hidden = false;
+    elements.battleFeedback.hidden = true;
+    elements.battleHandoff.hidden = true;
+    elements.battleRoundLabel.textContent = `第 ${battleState.index + 1} / ${
+      battleState.questions.length
+    } 题`;
+    elements.battleTimerLabel.textContent = `${battleTimerSeconds}s`;
+    elements.battleTimerBar.style.width = "100%";
+    elements.battleTimer.classList.remove("is-urgent");
+    elements.battleTimerLabel.classList.remove("is-urgent");
+    updateBattleScoreboard();
+    updateBattleTurn();
+    startBattleTimer();
+
+    const firstOption = elements.battleOptions.querySelector("button");
+    if (firstOption) {
+      firstOption.focus({ preventScroll: true });
+    }
+  }
+
+  function pickBattleAiAnswer(question) {
+    const correctOption = question.options.find((option) => option.correct);
+    const wrongOptions = question.options.filter((option) => !option.correct);
+    if (wrongOptions.length && Math.random() > battleAiAccuracy) {
+      return wrongOptions[Math.floor(Math.random() * wrongOptions.length)].text;
+    }
+    return correctOption ? correctOption.text : null;
+  }
+
+  function submitBattleAnswer(optionIndex) {
+    if (!battleState.active || battleState.phase !== "question") {
+      return;
+    }
+    const question = battleState.questions[battleState.index];
+    if (!question) {
+      return;
+    }
+    if (battleState.mode === "online") {
+      submitOnlineAnswer(optionIndex);
+      return;
+    }
+    const option = optionIndex === null ? null : question.options[optionIndex];
+    const answerText = option ? option.text : null;
+
+    stopBattleTimer();
+
+    if (battleState.mode === "ai") {
+      battleState.answers[0] = answerText;
+      battleState.answers[1] = battleState.aiAnswer;
+      renderBattleFeedback();
+      return;
+    }
+
+    if (battleState.actor === 0) {
+      battleState.answers[0] = answerText;
+      battleState.phase = "handoff";
+      showBattleHandoff();
+      return;
+    }
+
+    battleState.answers[1] = answerText;
+    renderBattleFeedback();
+  }
+
+  function showBattleHandoff() {
+    elements.battleHandoffTitle.textContent = `${battleState.names[0]} 已作答`;
+    elements.battleHandoffText.textContent = `把设备交给${battleState.names[1]}，准备答同一道题。`;
+    elements.battleHandoffNext.textContent = `${battleState.names[1]} 开始`;
+    elements.battleQuestion.hidden = true;
+    elements.battleOptions.hidden = true;
+    elements.battleFeedback.hidden = true;
+    elements.battleHandoff.hidden = false;
+    elements.battleTimerLabel.textContent = "—";
+    elements.battleTimerBar.style.width = "0%";
+    elements.battleTimer.classList.remove("is-urgent");
+    elements.battleTimerLabel.classList.remove("is-urgent");
+    updateBattleScoreboard();
+    updateBattleTurn();
+    elements.battleHandoffNext.focus();
+  }
+
+  function startSecondPlayerTurn() {
+    if (
+      !battleState.active ||
+      battleState.phase !== "handoff" ||
+      battleState.mode !== "duo"
+    ) {
+      return;
+    }
+    const question = battleState.questions[battleState.index];
+    if (!question) {
+      return;
+    }
+
+    battleState.phase = "question";
+    battleState.actor = 1;
+    battleState.optionOrder = shuffleWords(
+      question.options.map((_, index) => index),
+    );
+    elements.battleHandoff.hidden = true;
+    elements.battleQuestion.hidden = false;
+    elements.battleOptions.hidden = false;
+    elements.battleFeedback.hidden = true;
+    renderBattlePrompt(question);
+    renderBattleOptionButtons(question, null, false);
+    elements.battleTimerLabel.textContent = `${battleTimerSeconds}s`;
+    elements.battleTimerBar.style.width = "100%";
+    elements.battleTimer.classList.remove("is-urgent");
+    elements.battleTimerLabel.classList.remove("is-urgent");
+    updateBattleScoreboard();
+    updateBattleTurn();
+    startBattleTimer();
+
+    const firstOption = elements.battleOptions.querySelector("button");
+    if (firstOption) {
+      firstOption.focus({ preventScroll: true });
+    }
+  }
+
+  function renderBattleFeedback(options = {}) {
+    if (battleState.phase !== "question") {
+      return;
+    }
+    const question = battleState.questions[battleState.index];
+    if (!question) {
+      return;
+    }
+    battleState.phase = "feedback";
+
+    if (!options.skipScore) {
+      battleState.answers.forEach((answer, index) => {
+        if (answer !== null && answer === question.correct) {
+          battleState.scores[index] += 1;
+        }
+      });
+    }
+
+    let title;
+    if (battleState.mode === "ai") {
+      if (battleState.answers[0] === null) {
+        title = "时间到，未作答";
+      } else if (battleState.answers[0] === question.correct) {
+        title = "答对了！";
+      } else {
+        title = "这题没答对";
+      }
+    } else if (battleState.mode === "online") {
+      if (battleState.answers[0] === null) {
+        title = "时间到，未作答";
+      } else if (battleState.answers[0] === question.correct) {
+        title = "答对了！";
+      } else {
+        title = "这题没答对";
+      }
+    } else {
+      title = "答案揭晓";
+    }
+    elements.battleFeedbackTitle.textContent = title;
+
+    const cards = [0, 1]
+      .map((index) => {
+        const answer = battleState.answers[index];
+        const isCorrect = answer === question.correct;
+        const stateClass =
+          answer === null ? "is-empty" : isCorrect ? "is-correct" : "is-wrong";
+        const status = answer === null ? "未作答" : isCorrect ? "答对" : "答错";
+        return `
+          <div class="battle-answer-card ${stateClass}">
+            <span class="battle-answer-name">${escapeHtml(battleState.names[index])}</span>
+            <span class="battle-answer-status">${status}</span>
+            <p class="battle-answer-text">${
+              answer === null ? "超时未作答" : escapeHtml(answer)
+            }</p>
+          </div>`;
+      })
+      .join("");
+    elements.battleAnswerCards.innerHTML = cards;
+
+    const word = question.word;
+    const detail = wordDetails[word.word] || {};
+    const sentence = (detail.sentences || [])[0];
+    const phonetic = phoneticFor(word, state.accent);
+    const partKey = word.partKeys.values().next().value || "";
+    const partClass = partKey ? `part-${partKey}` : "";
+    elements.battleWordReveal.innerHTML = `
+      <div class="battle-reveal-head">
+        <button
+          class="battle-speak"
+          type="button"
+          data-battle-action="speak"
+          data-word="${escapeHtml(word.word)}"
+          title="朗读 ${escapeHtml(word.word)}"
+          aria-label="朗读 ${escapeHtml(word.word)}"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M11 5 6 9H2v6h4l5 4V5z" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          </svg>
+        </button>
+        <strong class="battle-reveal-word">${escapeHtml(word.word)}</strong>
+        <span class="battle-reveal-phonetic">${escapeHtml(phonetic)}</span>
+        <span class="part-badge ${partClass}">${escapeHtml(word.part)}</span>
+      </div>
+      <p class="battle-reveal-meaning">${escapeHtml(word.meaning)}</p>
+      ${
+        sentence
+          ? `<div class="battle-example">
+               <button
+                 class="battle-example-en"
+                 type="button"
+                 data-battle-action="speak-text"
+                 data-speak="${escapeHtml(sentence.en)}"
+               >${escapeHtml(sentence.en)}</button>
+               <p class="battle-example-cn">${escapeHtml(sentence.cn)}</p>
+             </div>`
+          : ""
+      }`;
+
+    const selectedText =
+      battleState.mode === "duo" ? battleState.answers[1] : battleState.answers[0];
+    renderBattleOptionButtons(question, selectedText, true);
+    elements.battleQuestion.hidden = false;
+    elements.battleOptions.hidden = false;
+    elements.battleHandoff.hidden = true;
+    elements.battleFeedback.hidden = false;
+    elements.battleTimerLabel.textContent = "—";
+    elements.battleTimerBar.style.width = "0%";
+    elements.battleTimer.classList.remove("is-urgent");
+    elements.battleTimerLabel.classList.remove("is-urgent");
+    if (battleState.mode === "online") {
+      const isHost = onlineState.role === "host";
+      elements.battleNext.disabled = !isHost;
+      elements.battleNext.textContent = isHost
+        ? battleState.index + 1 >= battleState.questions.length
+          ? "查看结果"
+          : "下一题"
+        : "等待房主";
+    } else {
+      elements.battleNext.disabled = false;
+      elements.battleNext.textContent =
+        battleState.index + 1 >= battleState.questions.length ? "查看结果" : "下一题";
+    }
+    updateBattleScoreboard();
+    updateBattleTurn();
+    if (!elements.battleNext.disabled) {
+      elements.battleNext.focus();
+    }
+  }
+
+  function nextBattleQuestion() {
+    if (battleState.mode === "online") {
+      nextOnlineQuestion();
+      return;
+    }
+    if (battleState.phase !== "feedback") {
+      return;
+    }
+    if (battleState.index + 1 >= battleState.questions.length) {
+      showBattleResult();
+      return;
+    }
+    battleState.index += 1;
+    battleState.answers = [null, null];
+    battleState.aiAnswer = null;
+    beginBattleTurn(0);
+  }
+
+  function showBattleResult() {
+    stopBattleTimer();
+    battleState.active = false;
+    battleState.phase = "result";
+    const total = battleState.questions.length;
+    const [score1, score2] = battleState.scores;
+    const names = battleState.names;
+
+    let title;
+    if (score1 === score2) {
+      title = "平局";
+    } else if (battleState.mode === "ai") {
+      title = score1 > score2 ? "你赢了！" : "电脑赢了";
+    } else if (battleState.mode === "online") {
+      title = score1 > score2 ? "你赢了！" : "对手赢了";
+    } else {
+      title = score1 > score2 ? "玩家 1 获胜！" : "玩家 2 获胜！";
+    }
+
+    const stat = (index) => {
+      const correct = battleState.scores[index];
+      const percent = total ? Math.round((correct / total) * 100) : 0;
+      return `
+        <div class="battle-stat">
+          <span>${escapeHtml(names[index])}</span>
+          <strong>${correct} / ${total}</strong>
+          <small>正确率 ${percent}%</small>
+        </div>`;
+    };
+
+    elements.battleResultTitle.textContent = title;
+    elements.battleResultScore.textContent = `${names[0]} ${score1} : ${score2} ${names[1]}`;
+    elements.battleResultStats.innerHTML = `${stat(0)}${stat(1)}`;
+    if (battleState.mode === "online") {
+      const isGuest = onlineState.role === "guest";
+      elements.battleReplay.disabled = isGuest;
+      elements.battleReplay.textContent = isGuest ? "等待房主" : "再来一局";
+      elements.battleBack.textContent = "离开房间";
+    } else {
+      elements.battleReplay.disabled = false;
+      elements.battleReplay.textContent = "再来一局";
+      elements.battleBack.textContent = "返回设置";
+    }
+    elements.battlePlay.hidden = true;
+    elements.battleFeedback.hidden = true;
+    elements.battleResult.hidden = false;
+    if (elements.battleReplay.disabled) {
+      elements.battleBack.focus();
+    } else {
+      elements.battleReplay.focus();
+    }
+  }
+
+  function backToBattleSetup() {
+    const wasOnline = Boolean(onlineState.role);
+    if (wasOnline) {
+      leaveOnlineRoom({ notify: true, silent: true });
+    }
+    stopBattleTimer();
+    battleState.active = false;
+    battleState.phase = "setup";
+    battleState.questions = [];
+    battleState.index = 0;
+    battleState.scores = [0, 0];
+    battleState.answers = [null, null];
+    elements.battleReplay.disabled = false;
+    elements.battleReplay.textContent = "再来一局";
+    elements.battleBack.textContent = "返回设置";
+    elements.battlePlay.hidden = true;
+    elements.battleResult.hidden = true;
+    elements.battleSetup.hidden = false;
+    if (battleState.mode === "online") {
+      setOnlineStatus(wasOnline ? "已离开房间。" : "创建房间或加入房间。");
+    }
+    refreshBattleSetup();
+    elements.battleStart.focus();
+  }
+
+  function stopBattleTimer() {
+    if (battleState.timerId) {
+      window.clearInterval(battleState.timerId);
+      battleState.timerId = 0;
+    }
+  }
+
+  function startBattleTimer() {
+    stopBattleTimer();
+    battleState.deadline = Date.now() + battleTimerSeconds * 1000;
+    updateBattleTimer();
+    battleState.timerId = window.setInterval(updateBattleTimer, 100);
+  }
+
+  function updateBattleTimer() {
+    if (!battleState.active || battleState.phase !== "question") {
+      return;
+    }
+    const remaining = Math.max(0, battleState.deadline - Date.now());
+    const percent = (remaining / (battleTimerSeconds * 1000)) * 100;
+    elements.battleTimerBar.style.width = `${percent}%`;
+    elements.battleTimerLabel.textContent = `${Math.ceil(remaining / 1000)}s`;
+    elements.battleTimer.classList.toggle("is-urgent", remaining <= 5000);
+    elements.battleTimerLabel.classList.toggle("is-urgent", remaining <= 5000);
+    if (remaining <= 0) {
+      stopBattleTimer();
+      if (battleState.mode === "online") {
+        handleOnlineTimeout();
+      } else {
+        submitBattleAnswer(null);
+      }
+    }
   }
 
   function render() {
@@ -914,7 +2670,10 @@
       renderRandomWord();
     }
 
-    updateHeading(filteredWords.length);
+    updateHeading(
+      filteredWords.length,
+      uniqueBattleWords(filteredWords).length,
+    );
     updateListNav();
   }
 
@@ -1087,6 +2846,86 @@
   elements.resetFilters.addEventListener("click", resetFilters);
   elements.emptyReset.addEventListener("click", resetFilters);
   elements.randomWordButton.addEventListener("click", openRandomWord);
+  elements.battleButton.addEventListener("click", openBattle);
+  elements.battleModal.addEventListener("click", (event) => {
+    const actionButton = event.target.closest("[data-battle-action]");
+    if (actionButton) {
+      const action = actionButton.dataset.battleAction;
+      if (action === "close") {
+        closeBattle();
+      } else if (action === "speak" && actionButton.dataset.word) {
+        playWord(actionButton.dataset.word, state.accent);
+      } else if (action === "speak-text" && actionButton.dataset.speak) {
+        stopSpeaking();
+        playWord(actionButton.dataset.speak, state.accent);
+      }
+      return;
+    }
+
+    const modeButton = event.target.closest("[data-battle-mode]");
+    if (modeButton) {
+      const nextMode = modeButton.dataset.battleMode;
+      if (nextMode !== "online" && battleState.mode === "online") {
+        leaveOnlineRoom({ notify: true, silent: true });
+      }
+      battleState.mode =
+        nextMode === "duo" ? "duo" : nextMode === "online" ? "online" : "ai";
+      if (nextMode === "online" && !onlineState.role) {
+        setOnlineStatus("创建房间或加入房间。");
+      }
+      refreshBattleSetup();
+      return;
+    }
+
+    const countButton = event.target.closest("[data-battle-count]");
+    if (countButton) {
+      const count = Number(countButton.dataset.battleCount);
+      if (count === 5 || count === 10 || count === 15) {
+        battleState.questionCount = count;
+        if (onlineState.role === "host" && onlineState.connected) {
+          const scopeSize = uniqueBattleWords(getFilteredWords()).length;
+          onlineState.hostTotal = Math.min(count, scopeSize);
+          onlineState.scopeLabel = battleScopeText();
+          sendOnlineMessage({
+            type: "welcome",
+            roomNumber: onlineState.roomNumber,
+            questionCount: onlineState.hostTotal,
+            scopeLabel: onlineState.scopeLabel,
+          });
+        }
+        refreshBattleSetup();
+      }
+    }
+  });
+  elements.battleStart.addEventListener("click", startBattle);
+  elements.onlineCreate.addEventListener("click", createOnlineRoom);
+  elements.onlineJoinToggle.addEventListener("click", () => {
+    const panel = elements.onlineJoinPanel;
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) {
+      elements.onlineJoinInput.focus();
+    }
+  });
+  elements.onlineJoin.addEventListener("click", joinOnlineRoom);
+  elements.onlineConnect.addEventListener("click", connectOnlineRoom);
+  elements.onlineCopyInvite.addEventListener("click", () => {
+    copyOnlineText(elements.onlineInvite.value, "邀请码");
+  });
+  elements.onlineCopyAnswer.addEventListener("click", () => {
+    copyOnlineText(elements.onlineAnswer.value, "应答码");
+  });
+  elements.onlineLeave.addEventListener("click", () => leaveOnlineRoom());
+  elements.battleOptions.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-battle-option]");
+    if (!button || button.disabled) {
+      return;
+    }
+    submitBattleAnswer(Number(button.dataset.battleOption));
+  });
+  elements.battleNext.addEventListener("click", nextBattleQuestion);
+  elements.battleHandoffNext.addEventListener("click", startSecondPlayerTurn);
+  elements.battleReplay.addEventListener("click", startBattle);
+  elements.battleBack.addEventListener("click", backToBattleSetup);
   elements.randomModal.addEventListener("click", (event) => {
     const actionButton = event.target.closest("[data-random-action]");
     if (!actionButton) {
@@ -1122,7 +2961,34 @@
       target instanceof HTMLInputElement ||
       target instanceof HTMLTextAreaElement ||
       target instanceof HTMLSelectElement;
-    if (event.key === "/" && !isTyping) {
+    const battleOpen = !elements.battleModal.hidden;
+
+    if (battleOpen) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeBattle();
+        return;
+      }
+      if (
+        battleState.phase === "question" &&
+        /^[1-4]$/.test(event.key) &&
+        !event.repeat
+      ) {
+        const options = elements.battleOptions.querySelectorAll("[data-battle-option]");
+        const option = options[Number(event.key) - 1];
+        if (option) {
+          event.preventDefault();
+          option.click();
+        }
+        return;
+      }
+      // 对战时不要把键盘焦点送回遮罩后面的搜索框。
+      if (event.key === "/") {
+        return;
+      }
+    }
+
+    if (event.key === "/" && !isTyping && !battleOpen && elements.randomModal.hidden) {
       event.preventDefault();
       elements.searchInput.focus();
     }

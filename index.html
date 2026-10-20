@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="大学英语四级核心词汇的网页浏览版，支持分 List 浏览、搜索、词性筛选、释义遮蔽和真人发音朗读。"
+      content="大学英语四级核心词汇的网页浏览版，支持分 List 浏览、搜索、词性筛选、随机单词、问答对战（含联机）、释义遮蔽和真人发音朗读。"
     />
     <title>大学英语四级核心词汇</title>
     <link rel="stylesheet" href="./styles.css" />
@@ -113,22 +113,41 @@
           </div>
           <div class="heading-actions">
             <p class="result-count" id="resultCount">正在载入...</p>
-            <button
-              class="random-word-button"
-              id="randomWordButton"
-              type="button"
-              disabled
-              title="从当前列表或筛选结果中随机抽取一个单词（每轮不重复）"
-            >
-              <svg aria-hidden="true" viewBox="0 0 24 24">
-                <path d="m18 14 4 4-4 4" />
-                <path d="m18 2 4 4-4 4" />
-                <path d="M2 18h1.97a4 4 0 0 0 3.3-1.7l5.46-8.6a4 4 0 0 1 3.3-1.7H22" />
-                <path d="M2 6h1.97a4 4 0 0 1 3.6 2.2" />
-                <path d="M22 18h-6.04a4 4 0 0 1-3.3-1.8l-.36-.45" />
-              </svg>
-              <span>随机单词</span>
-            </button>
+            <div class="heading-buttons">
+              <button
+                class="battle-button"
+                id="battleButton"
+                type="button"
+                disabled
+                title="和电脑、同屏朋友或联机对手进行词汇问答对战"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M14.5 17.5 3 6V3h3l11.5 11.5" />
+                  <path d="m13 19 6-6" />
+                  <path d="m16 16 4 4" />
+                  <path d="m19 21 2-2" />
+                  <path d="m3 21 3-3" />
+                  <path d="m6 18-3-3" />
+                </svg>
+                <span>问答对战</span>
+              </button>
+              <button
+                class="random-word-button"
+                id="randomWordButton"
+                type="button"
+                disabled
+                title="从当前列表或筛选结果中随机抽取一个单词（每轮不重复）"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="m18 14 4 4-4 4" />
+                  <path d="m18 2 4 4-4 4" />
+                  <path d="M2 18h1.97a4 4 0 0 0 3.3-1.7l5.46-8.6a4 4 0 0 1 3.3-1.7H22" />
+                  <path d="M2 6h1.97a4 4 0 0 1 3.6 2.2" />
+                  <path d="M22 18h-6.04a4 4 0 0 1-3.3-1.8l-.36-.45" />
+                </svg>
+                <span>随机单词</span>
+              </button>
+            </div>
           </div>
         </section>
 
@@ -355,6 +374,291 @@
           </button>
         </div>
       </article>
+    </div>
+
+    <div
+      class="battle-modal"
+      id="battleModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="battleTitle"
+      hidden
+    >
+      <div class="battle-backdrop" data-battle-action="close"></div>
+      <section class="battle-card">
+        <header class="battle-head">
+          <div>
+            <p class="battle-kicker">VOCAB BATTLE</p>
+            <h2 id="battleTitle">问答对战</h2>
+          </div>
+          <button
+            class="icon-button battle-close"
+            type="button"
+            data-battle-action="close"
+            aria-label="关闭问答对战"
+            title="关闭"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <div class="battle-setup" id="battleSetup">
+          <p class="battle-lead">从当前筛选范围出题，答对得 1 分，最后比总分。</p>
+
+          <div class="battle-mode-grid" role="radiogroup" aria-label="对战模式">
+            <button
+              class="battle-mode-option is-selected"
+              type="button"
+              data-battle-mode="ai"
+              aria-pressed="true"
+            >
+              <span class="battle-mode-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <rect x="4" y="8" width="16" height="11" rx="3" />
+                  <path d="M12 8V5" />
+                  <circle cx="12" cy="3.5" r="1.2" />
+                  <path d="M9 13h.01M15 13h.01" />
+                  <path d="M9 17h6" />
+                </svg>
+              </span>
+              <span class="battle-mode-copy">
+                <strong>人机对战</strong>
+                <span>你 vs 电脑</span>
+              </span>
+            </button>
+            <button
+              class="battle-mode-option"
+              type="button"
+              data-battle-mode="duo"
+              aria-pressed="false"
+            >
+              <span class="battle-mode-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="9" cy="8" r="3" />
+                  <path d="M3 20c0-3 2.7-5 6-5s6 2 6 5" />
+                  <circle cx="17" cy="9" r="2.5" />
+                  <path d="M15 20c0-2.5 1.5-4 4-4 1.4 0 2.6.5 3.3 1.4" />
+                </svg>
+              </span>
+              <span class="battle-mode-copy">
+                <strong>双人对战</strong>
+                <span>玩家 1 vs 玩家 2</span>
+              </span>
+            </button>
+            <button
+              class="battle-mode-option"
+              type="button"
+              data-battle-mode="online"
+              aria-pressed="false"
+            >
+              <span class="battle-mode-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="8.5" />
+                  <path d="M3.5 12h17" />
+                  <path d="M12 3.5c2.4 2.3 3.8 5 3.8 8.5s-1.4 6.2-3.8 8.5c-2.4-2.3-3.8-5-3.8-8.5s1.4-6.2 3.8-8.5z" />
+                </svg>
+              </span>
+              <span class="battle-mode-copy">
+                <strong>联机对战</strong>
+                <span>创建房间 · 邀请码加入</span>
+              </span>
+            </button>
+          </div>
+
+          <div class="battle-scope">
+            <span class="battle-scope-label">出题范围</span>
+            <strong id="battleScopeLabel">全部词汇</strong>
+            <span class="battle-scope-count" id="battleScopeCount">456 个可出题单词</span>
+          </div>
+
+          <div class="battle-count-row">
+            <span class="battle-count-label">题目数量</span>
+            <div class="battle-count-options" role="group" aria-label="题目数量">
+              <button type="button" data-battle-count="5">5 题</button>
+              <button
+                class="is-selected"
+                type="button"
+                data-battle-count="10"
+                aria-pressed="true"
+              >
+                10 题
+              </button>
+              <button type="button" data-battle-count="15">15 题</button>
+            </div>
+          </div>
+
+          <div class="battle-online" id="onlinePanel" hidden>
+            <div class="battle-online-entry" id="onlineEntry">
+              <button class="battle-online-create" id="onlineCreate" type="button">
+                创建房间
+              </button>
+              <span class="battle-online-or">或</span>
+              <button class="battle-online-join-toggle" id="onlineJoinToggle" type="button">
+                加入房间
+              </button>
+            </div>
+
+            <div class="battle-online-join" id="onlineJoinPanel" hidden>
+              <label for="onlineJoinInput">粘贴房主发来的邀请码</label>
+              <textarea
+                class="battle-online-code"
+                id="onlineJoinInput"
+                rows="4"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder="EW1...."
+              ></textarea>
+              <button class="battle-online-secondary" id="onlineJoin" type="button">
+                生成应答码
+              </button>
+            </div>
+
+            <div class="battle-online-host" id="onlineHostPanel" hidden>
+              <p class="battle-online-room">
+                房间编号 <strong id="onlineRoomNumber">----</strong>
+                <span>邀请码是唯一加入凭证</span>
+              </p>
+              <label for="onlineInvite">邀请码</label>
+              <textarea
+                class="battle-online-code"
+                id="onlineInvite"
+                rows="4"
+                readonly
+                spellcheck="false"
+              ></textarea>
+              <button class="battle-online-secondary" id="onlineCopyInvite" type="button">
+                复制邀请码
+              </button>
+              <label for="onlineAnswerInput">粘贴对手返回的应答码</label>
+              <textarea
+                class="battle-online-code"
+                id="onlineAnswerInput"
+                rows="3"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder="EW1...."
+              ></textarea>
+              <button class="battle-online-secondary" id="onlineConnect" type="button">
+                完成连接
+              </button>
+            </div>
+
+            <div class="battle-online-guest" id="onlineGuestPanel" hidden>
+              <p class="battle-online-room">
+                房间编号 <strong id="onlineGuestRoom">----</strong>
+                <span>把应答码发回给房主</span>
+              </p>
+              <label for="onlineAnswer">应答码</label>
+              <textarea
+                class="battle-online-code"
+                id="onlineAnswer"
+                rows="4"
+                readonly
+                spellcheck="false"
+              ></textarea>
+              <button class="battle-online-secondary" id="onlineCopyAnswer" type="button">
+                复制应答码
+              </button>
+            </div>
+
+            <div class="battle-online-foot">
+              <p class="battle-online-status" id="onlineStatus" role="status" aria-live="polite">
+                选择创建房间或加入房间。
+              </p>
+              <button class="battle-online-leave" id="onlineLeave" type="button" hidden>
+                离开房间
+              </button>
+            </div>
+          </div>
+
+          <p class="battle-hint" id="battleHint">
+            电脑正确率约 65% · 每题 15 秒，超时算答错。
+          </p>
+          <button class="battle-start" id="battleStart" type="button">开始人机对战</button>
+        </div>
+
+        <div class="battle-play" id="battlePlay" hidden>
+          <div class="battle-scoreboard" aria-live="polite">
+            <div class="battle-player is-active" id="battlePlayer1">
+              <span class="battle-avatar" id="battlePlayer1Avatar">你</span>
+              <span class="battle-player-copy">
+                <span id="battlePlayer1Name">你</span>
+                <strong id="battlePlayer1Score">0</strong>
+              </span>
+            </div>
+            <span class="battle-vs">VS</span>
+            <div class="battle-player" id="battlePlayer2">
+              <span class="battle-avatar" id="battlePlayer2Avatar">AI</span>
+              <span class="battle-player-copy">
+                <span id="battlePlayer2Name">电脑</span>
+                <strong id="battlePlayer2Score">0</strong>
+              </span>
+            </div>
+          </div>
+
+          <div class="battle-progress-row">
+            <span id="battleRoundLabel">第 1 / 10 题</span>
+            <span id="battleTurnLabel">轮到你</span>
+            <span id="battleTimerLabel">15s</span>
+          </div>
+          <div class="battle-timer" id="battleTimer">
+            <span id="battleTimerBar"></span>
+          </div>
+
+          <div class="battle-question" id="battleQuestion">
+            <p class="battle-question-type" id="battleQuestionType">英译中</p>
+            <p class="battle-prompt" id="battlePrompt"></p>
+            <p class="battle-prompt-sub" id="battlePromptSub">选出正确的中文释义</p>
+          </div>
+          <div class="battle-options" id="battleOptions"></div>
+
+          <div class="battle-feedback" id="battleFeedback" hidden>
+            <p class="battle-feedback-title" id="battleFeedbackTitle" aria-live="polite"></p>
+            <div class="battle-answer-cards" id="battleAnswerCards"></div>
+            <div class="battle-word-reveal" id="battleWordReveal"></div>
+            <button class="battle-next" id="battleNext" type="button">下一题</button>
+          </div>
+
+          <div class="battle-handoff" id="battleHandoff" hidden>
+            <span class="battle-handoff-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M4 7h11" />
+                <path d="m12 3 4 4-4 4" />
+                <path d="M20 17H9" />
+                <path d="m12 13-4 4 4 4" />
+              </svg>
+            </span>
+            <h3 id="battleHandoffTitle">玩家 1 已作答</h3>
+            <p id="battleHandoffText">把设备交给玩家 2，准备答同一道题。</p>
+            <button class="battle-next" id="battleHandoffNext" type="button">
+              玩家 2 开始
+            </button>
+          </div>
+        </div>
+
+        <div class="battle-result" id="battleResult" hidden>
+          <span class="battle-result-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M8 3h8v5a4 4 0 0 1-8 0V3z" />
+              <path d="M8 5H5v1a3 3 0 0 0 3 3" />
+              <path d="M16 5h3v1a3 3 0 0 1-3 3" />
+              <path d="M12 12v5" />
+              <path d="M8 21h8" />
+              <path d="M9 17h6v4H9z" />
+            </svg>
+          </span>
+          <p class="battle-result-kicker">对战结束</p>
+          <h3 id="battleResultTitle"></h3>
+          <p class="battle-result-score" id="battleResultScore"></p>
+          <div class="battle-result-stats" id="battleResultStats"></div>
+          <div class="battle-result-actions">
+            <button class="battle-next" id="battleReplay" type="button">再来一局</button>
+            <button class="text-button" id="battleBack" type="button">返回设置</button>
+          </div>
+        </div>
+      </section>
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
