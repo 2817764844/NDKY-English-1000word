@@ -31,6 +31,7 @@
   const speechFallbackTimeout = 2000;
   const maxCachedAudio = 40;
   const favoriteStorageKey = "cet4-favorites";
+  const progressStorageKey = "cet4-progress";
   const accentStorageKey = "cet4-accent";
   const autoSpeakStorageKey = "cet4-auto-speak";
   const detailStorageKey = "cet4-detail";
@@ -46,6 +47,18 @@
   let lastRandomWord = null;
   // 被标记「遗忘」的词条留到下一轮；队列只属于当前候选范围，切换范围会清空。
   const forgottenWords = new Set();
+  const progressOrder = ["unknown", "fuzzy", "mastered"];
+  const progressLabels = {
+    unknown: "生词",
+    fuzzy: "模糊",
+    mastered: "已掌握",
+  };
+  const progressShortLabels = {
+    unknown: "生",
+    fuzzy: "模糊",
+    mastered: "会",
+  };
+
 
   // 问答对战：同一套题目支持人机对战和同屏双人对战。
   const battleTimerSeconds = 15;
@@ -147,6 +160,7 @@
     query: "",
     part: "all",
     favoritesOnly: false,
+    progressFilter: "all",
     hideWord: false,
     hideMeaning: false,
     visibleLimit: initialLimit,
@@ -167,6 +181,8 @@
     partFilter: document.querySelector("#partFilter"),
     favoriteFilter: document.querySelector("#favoriteFilter"),
     favoriteCount: document.querySelector("#favoriteCount"),
+    progressFilter: document.querySelector("#progressFilter"),
+    progressStats: document.querySelector("#progressStats"),
     wordToggle: document.querySelector("#wordToggle"),
     meaningToggle: document.querySelector("#meaningToggle"),
     accentToggle: document.querySelector("#accentToggle"),
@@ -190,6 +206,9 @@
     randomFavoriteButton: document.querySelector("#randomFavoriteButton"),
     randomForgotButton: document.querySelector("#randomForgotButton"),
     randomForgotLabel: document.querySelector("#randomForgotLabel"),
+    randomKnowButton: document.querySelector("#randomKnowButton"),
+    randomProgressButton: document.querySelector("#randomProgressButton"),
+    randomProgressLabel: document.querySelector("#randomProgressLabel"),
     randomNextLabel: document.querySelector("#randomNextLabel"),
     battleButton: document.querySelector("#battleButton"),
     battleModal: document.querySelector("#battleModal"),
@@ -260,6 +279,7 @@
   };
 
   const favorites = loadFavorites();
+  const progressMap = loadProgress();
   const fragment = document.createDocumentFragment();
 
   function readStorage(key) {
@@ -301,6 +321,66 @@
 
   function saveFavorites() {
     writeStorage(favoriteStorageKey, JSON.stringify([...favorites]));
+  }
+
+  function loadProgress() {
+    try {
+      const stored = JSON.parse(readStorage(progressStorageKey) || "{}");
+      const map = new Map();
+      if (!stored || typeof stored !== "object" || Array.isArray(stored)) {
+        return map;
+      }
+      Object.entries(stored).forEach(([id, value]) => {
+        if (value === "fuzzy" || value === "mastered") {
+          map.set(String(id), value);
+        }
+      });
+      return map;
+    } catch {
+      return new Map();
+    }
+  }
+
+  function saveProgress() {
+    const payload = {};
+    progressMap.forEach((value, id) => {
+      if (value === "fuzzy" || value === "mastered") {
+        payload[id] = value;
+      }
+    });
+    writeStorage(progressStorageKey, JSON.stringify(payload));
+  }
+
+  function getProgress(wordId) {
+    return progressMap.get(wordId) || "unknown";
+  }
+
+  function setProgress(wordId, status) {
+    if (status === "unknown") {
+      progressMap.delete(wordId);
+    } else if (status === "fuzzy" || status === "mastered") {
+      progressMap.set(wordId, status);
+    } else {
+      return getProgress(wordId);
+    }
+    saveProgress();
+    return getProgress(wordId);
+  }
+
+  function cycleProgress(wordId) {
+    const current = getProgress(wordId);
+    const next = progressOrder[(progressOrder.indexOf(current) + 1) % progressOrder.length];
+    return setProgress(wordId, next);
+  }
+
+  function progressButtonAttrs(wordId, short = false) {
+    const status = getProgress(wordId);
+    const label = short ? progressShortLabels[status] : progressLabels[status];
+    return {
+      status,
+      label,
+      title: `学习进度：${progressLabels[status]}（点击切换：生词 → 模糊 → 已掌握）`,
+    };
   }
 
   function escapeHtml(value) {
@@ -518,6 +598,47 @@
     });
   }
 
+  // 统计用：当前 List / 搜索 / 词性 / 收藏范围，不含进度筛选。
+  function getScopeWords() {
+    const query = state.query.trim().toLocaleLowerCase("zh-CN");
+    return words.filter((word) => {
+      if (state.selectedList !== "all" && word.list !== Number(state.selectedList)) {
+        return false;
+      }
+      if (state.part !== "all" && !word.partKeys.has(state.part)) {
+        return false;
+      }
+      if (state.favoritesOnly && !favorites.has(word.id)) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      return (
+        word.word.toLocaleLowerCase("en-US").includes(query) ||
+        word.meaning.toLocaleLowerCase("zh-CN").includes(query) ||
+        String(word.number).includes(query)
+      );
+    });
+  }
+
+  function countProgress(scopeWords) {
+    let mastered = 0;
+    let fuzzy = 0;
+    let unknown = 0;
+    scopeWords.forEach((word) => {
+      const status = getProgress(word.id);
+      if (status === "mastered") {
+        mastered += 1;
+      } else if (status === "fuzzy") {
+        fuzzy += 1;
+      } else {
+        unknown += 1;
+      }
+    });
+    return { mastered, fuzzy, unknown };
+  }
+
   function getFilteredWords() {
     const query = state.query.trim().toLocaleLowerCase("zh-CN");
 
@@ -529,6 +650,9 @@
         return false;
       }
       if (state.favoritesOnly && !favorites.has(word.id)) {
+        return false;
+      }
+      if (state.progressFilter !== "all" && getProgress(word.id) !== state.progressFilter) {
         return false;
       }
       if (!query) {
@@ -662,6 +786,7 @@
 
   function renderWordRow(word, previousWord) {
     const isFavorite = favorites.has(word.id);
+    const progress = progressButtonAttrs(word.id, true);
     const order = state.selectedList === "all" ? word.globalNumber : word.number;
     const startsNewList =
       state.selectedList === "all" && previousWord && word.list !== previousWord.list;
@@ -740,6 +865,16 @@
         </button>
       </span>
       <button
+        class="progress-button"
+        type="button"
+        data-action="progress"
+        data-progress="${progress.status}"
+        aria-label="${escapeHtml(word.word)} 学习进度：${progress.label}"
+        title="${progress.title}"
+      >
+        <span>${progress.label}</span>
+      </button>
+      <button
         class="favorite-button"
         type="button"
         data-action="favorite"
@@ -777,6 +912,9 @@
     if (state.favoritesOnly) {
       filters.push("仅收藏");
     }
+    if (state.progressFilter !== "all") {
+      filters.push(progressLabels[state.progressFilter] || state.progressFilter);
+    }
     if (state.query.trim()) {
       filters.push(`“${state.query.trim()}”`);
     }
@@ -785,6 +923,12 @@
       filters.length > 0
         ? `${filteredCount} 条结果 · ${filters.join(" · ")}`
         : `共 ${filteredCount} 个单词`;
+
+    const stats = countProgress(getScopeWords());
+    if (elements.progressStats) {
+      elements.progressStats.textContent = `已掌握 ${stats.mastered} · 模糊 ${stats.fuzzy} · 生词 ${stats.unknown}`;
+    }
+
     elements.randomWordButton.disabled = filteredCount === 0;
     elements.battleButton.disabled = battleCount < 4;
     elements.battleButton.title =
@@ -853,8 +997,33 @@
       showToast("已移出下一轮");
     } else {
       forgottenWords.add(activeRandomWord.id);
-      showToast("已留到下一轮");
+      setProgress(activeRandomWord.id, "fuzzy");
+      showToast("已标为模糊，并留到下一轮");
     }
+    render();
+    renderRandomWord();
+  }
+
+  function markRandomWordKnown() {
+    if (!activeRandomWord) {
+      return;
+    }
+    setProgress(activeRandomWord.id, "mastered");
+    if (forgottenWords.has(activeRandomWord.id)) {
+      forgottenWords.delete(activeRandomWord.id);
+    }
+    showToast("已标为已掌握");
+    render();
+    renderRandomWord();
+  }
+
+  function cycleRandomWordProgress() {
+    if (!activeRandomWord) {
+      return;
+    }
+    const next = cycleProgress(activeRandomWord.id);
+    showToast(`进度：${progressLabels[next]}`);
+    render();
     renderRandomWord();
   }
 
@@ -880,6 +1049,13 @@
     elements.randomFavoriteButton.setAttribute("aria-pressed", isFavorite ? "true" : "false");
     elements.randomFavoriteButton.title = isFavorite ? "取消收藏" : "收藏";
 
+    const progress = progressButtonAttrs(word.id);
+    if (elements.randomProgressButton) {
+      elements.randomProgressButton.dataset.progress = progress.status;
+      elements.randomProgressButton.title = progress.title;
+      elements.randomProgressLabel.textContent = progress.label;
+    }
+
     const isForgotten = forgottenWords.has(word.id);
     elements.randomForgotButton.setAttribute(
       "aria-pressed",
@@ -888,7 +1064,13 @@
     elements.randomForgotLabel.textContent = isForgotten ? "已留" : "遗忘";
     elements.randomForgotButton.title = isForgotten
       ? "取消留到下一轮"
-      : "没记住，留到下一轮再抽";
+      : "没记住，标为模糊并留到下一轮再抽";
+
+    const isMastered = progress.status === "mastered";
+    if (elements.randomKnowButton) {
+      elements.randomKnowButton.setAttribute("aria-pressed", isMastered ? "true" : "false");
+      elements.randomKnowButton.title = isMastered ? "当前已是已掌握" : "已记住，标为已掌握";
+    }
 
     if (randomBag.length === 0) {
       const pendingCount = pendingForgottenWords().length;
@@ -913,7 +1095,7 @@
       return;
     }
 
-    // 候选集合变化（切换 List、搜索、词性、收藏筛选）时重新开一轮。
+    // 候选集合变化（切换 List、搜索、词性、收藏或进度筛选）时重新开一轮。
     const scopeKey = filteredWords.map((word) => word.id).join(",");
     const scopeChanged = scopeKey !== randomBagScope;
     if (scopeChanged) {
@@ -2682,11 +2864,15 @@
     state.query = "";
     state.part = "all";
     state.favoritesOnly = false;
+    state.progressFilter = "all";
     state.hideWord = false;
     state.hideMeaning = false;
     state.visibleLimit = initialLimit;
     elements.searchInput.value = "";
     elements.partFilter.value = "all";
+    if (elements.progressFilter) {
+      elements.progressFilter.value = "all";
+    }
   }
 
   elements.listNav.addEventListener("click", (event) => {
@@ -2726,6 +2912,18 @@
     state.visibleLimit = initialLimit;
     render();
   });
+
+  if (elements.progressFilter) {
+    elements.progressFilter.addEventListener("change", (event) => {
+      const value = event.target.value;
+      state.progressFilter =
+        value === "unknown" || value === "fuzzy" || value === "mastered"
+          ? value
+          : "all";
+      state.visibleLimit = initialLimit;
+      render();
+    });
+  }
 
   elements.meaningToggle.addEventListener("click", () => {
     state.hideMeaning = !state.hideMeaning;
@@ -2771,6 +2969,7 @@
     const speakButton = event.target.closest('[data-action="speak"]');
     const speakTextButton = event.target.closest('[data-action="speak-text"]');
     const favoriteButton = event.target.closest('[data-action="favorite"]');
+    const progressButton = event.target.closest('[data-action="progress"]');
     const detailButton = event.target.closest('[data-action="detail"]');
     const row = event.target.closest(".word-row");
     if (!row) {
@@ -2800,6 +2999,12 @@
         favorites.add(word.id);
       }
       saveFavorites();
+      render();
+      return;
+    }
+
+    if (progressButton) {
+      cycleProgress(word.id);
       render();
       return;
     }
@@ -2943,6 +3148,10 @@
       playWord(activeRandomWord.word, state.accent);
     } else if (action === "forget") {
       toggleForgottenWord();
+    } else if (action === "know") {
+      markRandomWordKnown();
+    } else if (action === "progress") {
+      cycleRandomWordProgress();
     } else if (action === "favorite" && activeRandomWord) {
       if (favorites.has(activeRandomWord.id)) {
         favorites.delete(activeRandomWord.id);

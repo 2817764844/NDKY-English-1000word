@@ -9,7 +9,7 @@
     />
     <title>大学英语四级核心词汇</title>
     <!-- 资源版本号用于绕过 GitHub Pages 约 10 分钟的浏览器缓存；修改 styles.css/app.js/words.js 后请同步更新。 -->
-    <link rel="stylesheet" href="./styles.css?v=20261020-2" />
+    <link rel="stylesheet" href="./styles.css?v=20261105-1" />
   </head>
   <body>
     <header class="app-header">
@@ -50,7 +50,7 @@
           <svg aria-hidden="true" viewBox="0 0 24 24">
             <path d="M12 3v18M3 12h18" />
           </svg>
-          <span>点击星标可建立自己的生词本，数据只保存在本机浏览器中。</span>
+          <span>点击星标可收藏；点进度钮可标记生词 / 模糊 / 已掌握，数据只保存在本机浏览器中。</span>
         </div>
       </aside>
 
@@ -105,6 +105,19 @@
             <span class="count-badge" id="favoriteCount">0</span>
           </button>
 
+          <label class="select-field">
+            <span class="sr-only">按学习进度筛选</span>
+            <select id="progressFilter" aria-label="按学习进度筛选">
+              <option value="all">全部进度</option>
+              <option value="unknown">生词</option>
+              <option value="fuzzy">模糊</option>
+              <option value="mastered">已掌握</option>
+            </select>
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </label>
+
         </section>
 
         <section class="content-heading" aria-live="polite">
@@ -114,6 +127,7 @@
           </div>
           <div class="heading-actions">
             <p class="result-count" id="resultCount">正在载入...</p>
+            <p class="progress-stats" id="progressStats">已掌握 0 · 模糊 0 · 生词 0</p>
             <div class="heading-buttons">
               <button
                 class="battle-button"
@@ -160,6 +174,7 @@
             <span>词性</span>
             <span>释义</span>
             <span class="audio-head">朗读</span>
+            <span class="progress-head">进度</span>
             <span></span>
           </div>
           <ol class="word-list" id="wordList"></ol>
@@ -171,7 +186,7 @@
               </svg>
             </div>
             <h3>没有找到匹配的词汇</h3>
-            <p>可以尝试更短的关键词，或清除词性和收藏筛选。</p>
+            <p>可以尝试更短的关键词，或清除词性、收藏和进度筛选。</p>
             <button class="primary-button" id="emptyReset" type="button">清除筛选</button>
           </div>
           <div class="load-more-wrap" id="loadMoreWrap" hidden>
@@ -330,6 +345,18 @@
           <span class="random-meaning-text" id="randomWordMeaningText"></span>
           <span class="random-meaning-note" id="randomWordMeaningNote">点击显示中文释义</span>
         </button>
+        <div class="random-card-progress-row">
+          <button
+            type="button"
+            class="progress-button random-progress-button"
+            id="randomProgressButton"
+            data-random-action="progress"
+            data-progress="unknown"
+            title="点击切换学习进度：生词 → 模糊 → 已掌握"
+          >
+            <span id="randomProgressLabel">生词</span>
+          </button>
+        </div>
         <div class="random-card-actions">
           <button type="button" data-random-action="speak">
             <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -355,13 +382,25 @@
             id="randomForgotButton"
             data-random-action="forget"
             aria-pressed="false"
-            title="没记住，留到下一轮再抽"
+            title="没记住，标为模糊并留到下一轮再抽"
           >
             <svg aria-hidden="true" viewBox="0 0 24 24">
               <path d="M3 12a9 9 0 1 0 3-6.7" />
               <path d="M3 4v5h5" />
             </svg>
             <span id="randomForgotLabel">遗忘</span>
+          </button>
+          <button
+            type="button"
+            id="randomKnowButton"
+            data-random-action="know"
+            aria-pressed="false"
+            title="已记住，标为已掌握"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+            <span>已会</span>
           </button>
           <button type="button" data-random-action="next">
             <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -668,7 +707,7 @@
       <div class="noscript-message">此页面需要启用 JavaScript 才能浏览词汇。</div>
     </noscript>
 
-    <script src="./words.js?v=20261020-2"></script>
-    <script src="./app.js?v=20261020-2"></script>
+    <script src="./words.js?v=20261105-1"></script>
+    <script src="./app.js?v=20261105-1"></script>
   </body>
 </html>

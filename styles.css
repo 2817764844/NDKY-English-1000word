@@ -26,6 +26,7 @@
   --col-part: 100px;
   --col-meaning: minmax(220px, 2.5fr);
   --col-audio: 46px;
+  --col-progress: 52px;
   --col-favorite: 48px;
 }
 
@@ -521,6 +522,14 @@ svg {
   font-size: 12.5px;
 }
 
+.progress-stats {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .heading-actions {
   display: flex;
   flex: 0 0 auto;
@@ -748,11 +757,17 @@ svg {
   display: block;
 }
 
+.random-card-progress-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 16px;
+}
+
 .random-card-actions {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
-  margin-top: 20px;
+  margin-top: 12px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
@@ -796,6 +811,12 @@ svg {
   background: #fdf1ec;
 }
 
+.random-card-actions button[data-random-action="know"][aria-pressed="true"] {
+  border-color: #9fcfc6;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+
 .random-card-actions svg {
   width: 15px;
   height: 15px;
@@ -812,10 +833,10 @@ svg {
 .word-list-head,
 .word-row {
   display: grid;
-  /* 序号 / 单词 / 音标 / 词性 / 释义 / 朗读 / 收藏 */
+  /* 序号 / 单词 / 音标 / 词性 / 释义 / 朗读 / 进度 / 收藏 */
   grid-template-columns:
     var(--col-order) var(--col-word) var(--col-phonetic) var(--col-part)
-    var(--col-meaning) var(--col-audio) var(--col-favorite);
+    var(--col-meaning) var(--col-audio) var(--col-progress) var(--col-favorite);
   align-items: center;
 }
 
@@ -1068,6 +1089,55 @@ svg {
 .word-row.content-revealed .word-reveal-note,
 .word-row.content-revealed .meaning-reveal-note {
   display: none;
+}
+
+.progress-button {
+  display: inline-grid;
+  min-width: 40px;
+  height: 28px;
+  padding: 0 7px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--muted-strong);
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    color 140ms ease,
+    background 140ms ease;
+}
+
+.progress-button:hover {
+  border-color: #9db8ae;
+  color: var(--accent-dark);
+  background: #f8fbfa;
+}
+
+.progress-button[data-progress="unknown"] {
+  color: #7a8781;
+  background: #f4f6f5;
+}
+
+.progress-button[data-progress="fuzzy"] {
+  border-color: #e3c0b4;
+  color: #a3543d;
+  background: #fdf1ec;
+}
+
+.progress-button[data-progress="mastered"] {
+  border-color: #9fcfc6;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+
+.random-progress-button {
+  min-width: 72px;
+  height: 30px;
+  font-size: 12px;
 }
 
 .favorite-button {
@@ -2464,6 +2534,7 @@ svg {
     --col-part: 86px;
     --col-meaning: minmax(180px, 2fr);
     --col-audio: 42px;
+    --col-progress: 48px;
     --col-favorite: 44px;
   }
 
@@ -2481,6 +2552,7 @@ svg {
     --col-word: minmax(120px, 1fr);
     --col-part: 76px;
     --col-meaning: minmax(150px, 1.8fr);
+    --col-progress: 44px;
     --col-favorite: 42px;
   }
 
@@ -2644,11 +2716,11 @@ svg {
   }
 
   .word-row {
-    grid-template-columns: 42px minmax(0, 1fr) 40px;
+    grid-template-columns: 42px minmax(0, 1fr) 40px 40px;
     grid-template-areas:
-      "order word favorite"
-      "order part favorite"
-      "order meaning favorite";
+      "order word progress favorite"
+      "order part progress favorite"
+      "order meaning progress favorite";
     align-items: start;
     min-height: 0;
     padding: 13px 10px;
@@ -2676,6 +2748,13 @@ svg {
     grid-area: meaning;
     padding-right: 5px;
     font-size: 13px;
+  }
+
+  .progress-button {
+    grid-area: progress;
+    align-self: start;
+    justify-self: center;
+    margin-top: 2px;
   }
 
   .favorite-button {
@@ -2930,7 +3009,11 @@ svg {
   }
 
   .random-card-actions {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .random-card-actions button[data-random-action="next"] {
+    grid-column: 1 / -1;
   }
 }
 
