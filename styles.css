@@ -33,7 +33,7 @@
   --col-part: 96px;
   --col-meaning: minmax(220px, 2.5fr);
   --col-audio: 46px;
-  --col-progress: 52px;
+  --col-progress: 64px;
   --col-favorite: 48px;
 }
 
@@ -779,6 +779,8 @@ svg {
 .random-card-progress-row {
   display: flex;
   justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
   margin-top: 16px;
 }
 
@@ -1113,51 +1115,96 @@ svg {
 
 .progress-button {
   display: inline-grid;
-  min-width: 40px;
-  height: 28px;
-  padding: 0 7px;
+  min-width: 48px;
+  min-height: 34px;
+  height: 34px;
+  padding: 0 10px;
   place-items: center;
-  border: 1px solid var(--border-strong);
+  border: 1.5px solid var(--border-strong);
   border-radius: 999px;
   color: var(--muted-strong);
   background: #ffffff;
-  font-size: 11px;
-  font-weight: 750;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
   white-space: nowrap;
   cursor: pointer;
+  box-shadow: 0 1px 0 rgba(23, 33, 29, 0.04);
   transition:
     border-color 140ms ease,
     color 140ms ease,
-    background 140ms ease;
+    background 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
 }
 
 .progress-button:hover {
-  border-color: #9db8ae;
+  border-color: #7aa89c;
   color: var(--accent-dark);
-  background: #f8fbfa;
+  background: #eef7f4;
+  box-shadow: 0 2px 6px rgba(15, 118, 110, 0.12);
+}
+
+.progress-button:focus-visible {
+  outline: 2px solid rgba(15, 118, 110, 0.45);
+  outline-offset: 2px;
+}
+
+.progress-button:active {
+  transform: translateY(1px);
 }
 
 .progress-button[data-progress="unknown"] {
-  color: #7a8781;
-  background: #f4f6f5;
+  border-color: #9aa8a1;
+  color: #3d4a44;
+  background: #e8ecea;
+  box-shadow: inset 0 0 0 1px rgba(61, 74, 68, 0.04);
+}
+
+.progress-button[data-progress="unknown"]:hover {
+  border-color: #7f8f87;
+  color: #2c3732;
+  background: #dde4e0;
 }
 
 .progress-button[data-progress="fuzzy"] {
-  border-color: #e3c0b4;
-  color: #a3543d;
-  background: #fdf1ec;
+  border-color: #d9896a;
+  color: #8a341f;
+  background: #fce3d6;
+  box-shadow: 0 1px 0 rgba(196, 90, 45, 0.12);
+}
+
+.progress-button[data-progress="fuzzy"]:hover {
+  border-color: #c45a2d;
+  color: #6f2714;
+  background: #f8d4c0;
 }
 
 .progress-button[data-progress="mastered"] {
-  border-color: #9fcfc6;
-  color: var(--accent-dark);
-  background: var(--accent-soft);
+  border-color: #2f9f8f;
+  color: #065f56;
+  background: #c7ebe4;
+  box-shadow: 0 1px 0 rgba(15, 118, 110, 0.14);
+}
+
+.progress-button[data-progress="mastered"]:hover {
+  border-color: #0f766e;
+  color: #064840;
+  background: #b5e3da;
 }
 
 .random-progress-button {
-  min-width: 72px;
-  height: 30px;
-  font-size: 12px;
+  min-width: 96px;
+  min-height: 40px;
+  height: 40px;
+  padding: 0 16px;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(23, 33, 29, 0.08);
+}
+
+.random-progress-button:hover {
+  box-shadow: 0 3px 10px rgba(15, 118, 110, 0.16);
 }
 
 .favorite-button {
@@ -2554,7 +2601,7 @@ svg {
     --col-part: 86px;
     --col-meaning: minmax(180px, 2fr);
     --col-audio: 42px;
-    --col-progress: 48px;
+    --col-progress: 60px;
     --col-favorite: 44px;
   }
 
@@ -2572,7 +2619,7 @@ svg {
     --col-word: minmax(120px, 1fr);
     --col-part: 76px;
     --col-meaning: minmax(150px, 1.8fr);
-    --col-progress: 44px;
+    --col-progress: 56px;
     --col-favorite: 42px;
   }
 
@@ -2780,7 +2827,11 @@ svg {
     grid-area: progress;
     align-self: start;
     justify-self: center;
+    min-width: 52px;
+    min-height: 36px;
+    height: 36px;
     margin-top: 2px;
+    font-size: 13px;
   }
 
   .favorite-button {
