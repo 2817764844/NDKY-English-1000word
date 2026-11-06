@@ -83,6 +83,20 @@
     deadline: 0,
   };
 
+  // 拼写测试只在本次弹窗里记分，不调用 setProgress / saveProgress。
+  const spellingDefaultCount = 10;
+  const spellingState = {
+    questionCount: spellingDefaultCount,
+    words: [],
+    index: 0,
+    phase: "setup",
+    correct: 0,
+    skipped: 0,
+    lastCorrect: false,
+    lastSkipped: false,
+    lastTyped: "",
+  };
+
   // 联机对战不依赖自建服务器：用 WebRTC DataChannel 点对点直连，
   // 房主/对手之间手动交换邀请码和应答码完成握手。
   const onlineSignalPrefix = "EW1.";
@@ -270,6 +284,35 @@
     battleResultStats: document.querySelector("#battleResultStats"),
     battleReplay: document.querySelector("#battleReplay"),
     battleBack: document.querySelector("#battleBack"),
+    spellingButton: document.querySelector("#spellingButton"),
+    spellingModal: document.querySelector("#spellingModal"),
+    spellingSetup: document.querySelector("#spellingSetup"),
+    spellingPlay: document.querySelector("#spellingPlay"),
+    spellingResult: document.querySelector("#spellingResult"),
+    spellingScopeLabel: document.querySelector("#spellingScopeLabel"),
+    spellingScopeCount: document.querySelector("#spellingScopeCount"),
+    spellingEmpty: document.querySelector("#spellingEmpty"),
+    spellingHint: document.querySelector("#spellingHint"),
+    spellingStart: document.querySelector("#spellingStart"),
+    spellingRoundLabel: document.querySelector("#spellingRoundLabel"),
+    spellingScoreLabel: document.querySelector("#spellingScoreLabel"),
+    spellingMeaning: document.querySelector("#spellingMeaning"),
+    spellingPart: document.querySelector("#spellingPart"),
+    spellingSpeak: document.querySelector("#spellingSpeak"),
+    spellingSpeakLabel: document.querySelector("#spellingSpeakLabel"),
+    spellingForm: document.querySelector("#spellingForm"),
+    spellingInput: document.querySelector("#spellingInput"),
+    spellingInputHint: document.querySelector("#spellingInputHint"),
+    spellingFeedback: document.querySelector("#spellingFeedback"),
+    spellingFeedbackTitle: document.querySelector("#spellingFeedbackTitle"),
+    spellingFeedbackDetail: document.querySelector("#spellingFeedbackDetail"),
+    spellingRevealWord: document.querySelector("#spellingRevealWord"),
+    spellingRevealPhonetic: document.querySelector("#spellingRevealPhonetic"),
+    spellingNext: document.querySelector("#spellingNext"),
+    spellingResultTitle: document.querySelector("#spellingResultTitle"),
+    spellingResultScore: document.querySelector("#spellingResultScore"),
+    spellingResultStats: document.querySelector("#spellingResultStats"),
+    spellingRetry: document.querySelector("#spellingRetry"),
     wordList: document.querySelector("#wordList"),
     emptyState: document.querySelector("#emptyState"),
     emptyReset: document.querySelector("#emptyReset"),
@@ -477,7 +520,8 @@
   let lastSpokenWord = "";
   let lastSpokenAt = 0;
 
-  async function playWord(word, accent) {
+  async function playWord(word, accent, options) {
+    const hideWord = Boolean(options && options.hideWord);
     const now = Date.now();
     // 避免同一次点击同时触发按钮与整行的朗读。
     if (word === lastSpokenWord && now - lastSpokenAt < 300) {
@@ -497,10 +541,16 @@
       return true;
     } catch {
       if (playWithSystemVoice(word, accent)) {
-        showToast(`在线真人发音暂不可用，已改用系统语音朗读「${word}」。`);
+        showToast(
+          hideWord
+            ? "在线真人发音暂不可用，已改用系统语音朗读。"
+            : `在线真人发音暂不可用，已改用系统语音朗读「${word}」。`,
+        );
       } else {
         showToast(
-          `「${word}」发音加载失败。${failureHint}`.trim(),
+          hideWord
+            ? `发音加载失败。${failureHint}`.trim()
+            : `「${word}」发音加载失败。${failureHint}`.trim(),
         );
       }
       return false;
@@ -930,6 +980,12 @@
     }
 
     elements.randomWordButton.disabled = filteredCount === 0;
+    if (elements.spellingButton) {
+      elements.spellingButton.title =
+        battleCount === 0
+          ? "当前筛选范围没有可拼写的单词"
+          : "看中文释义，拼写对应的英文单词";
+    }
     elements.battleButton.disabled = battleCount < 4;
     elements.battleButton.title =
       battleCount < 4
@@ -1146,13 +1202,15 @@
   }
 
   function syncModalScrollLock() {
+    const spellingOpen = Boolean(elements.spellingModal && !elements.spellingModal.hidden);
     document.body.classList.toggle(
       "modal-open",
-      !elements.randomModal.hidden || !elements.battleModal.hidden,
+      !elements.randomModal.hidden || !elements.battleModal.hidden || spellingOpen,
     );
   }
 
-  // 同一个单词可能在词表里出现两次（第 7 组复习词），出题时按拼写去重。
+  // 同一个单词可能在词表里出现两次（第 7 组复习词）。
+  // 问答对战和拼写测试都按英文拼写去重，避免一轮里重复出题。
   function uniqueBattleWords(items) {
     const seen = new Set();
     return items.filter((word) => {
@@ -2783,6 +2841,333 @@
     }
   }
 
+  function setSpellingBackgroundInert(inert) {
+    document.querySelectorAll(".app-header, .app-shell, .study-controls").forEach((node) => {
+      if (inert) {
+        node.setAttribute("inert", "");
+      } else {
+        node.removeAttribute("inert");
+      }
+    });
+  }
+
+  function normalizeSpelling(value) {
+    return String(value ?? "").trim().toLocaleLowerCase("en-US");
+  }
+
+  function spellingScopeText() {
+    const filters = [];
+    if (state.selectedList !== "all") {
+      const summary = listSummaries[Number(state.selectedList) - 1];
+      filters.push(summary ? `List ${summary.number}` : "当前列表");
+    }
+    if (state.part !== "all") {
+      filters.push(partLabels[state.part] || state.part);
+    }
+    if (state.favoritesOnly) {
+      filters.push("仅收藏");
+    }
+    if (state.progressFilter !== "all") {
+      filters.push(progressLabels[state.progressFilter] || state.progressFilter);
+    }
+    if (state.query.trim()) {
+      filters.push(`搜索“${state.query.trim()}”`);
+    }
+    return filters.length ? filters.join(" · ") : "全部词汇";
+  }
+
+  function refreshSpellingSetup() {
+    const pool = uniqueBattleWords(getFilteredWords());
+    const count = pool.length;
+    elements.spellingScopeLabel.textContent = spellingScopeText();
+    elements.spellingScopeCount.textContent = `${count} 个不重复单词`;
+    elements.spellingModal.querySelectorAll("[data-spelling-count]").forEach((button) => {
+      const selected = Number(button.dataset.spellingCount) === spellingState.questionCount;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", selected ? "true" : "false");
+      button.disabled = count === 0;
+    });
+    const empty = count === 0;
+    elements.spellingEmpty.hidden = !empty;
+    elements.spellingHint.hidden = empty;
+    elements.spellingStart.disabled = empty;
+    if (empty) {
+      return;
+    }
+    const actual = Math.min(spellingState.questionCount, count);
+    elements.spellingHint.textContent =
+      actual < spellingState.questionCount
+        ? `当前范围只有 ${count} 个不重复单词，本次测试 ${actual} 题。不区分大小写，不会自动修改学习进度。`
+        : "不区分大小写，首尾空格不计。同一拼写只出现一次，不会自动修改学习进度。";
+  }
+
+  function updateSpellingSpeak(revealed) {
+    const word = spellingState.words[spellingState.index];
+    const accentInfo = accentOptions[state.accent] || accentOptions.us;
+    const accentName = state.accent === "uk" ? "英音" : "美音";
+    elements.spellingSpeakLabel.textContent = `听${accentName}`;
+    elements.spellingSpeak.setAttribute(
+      "aria-label",
+      revealed && word
+        ? `朗读 ${word.word}（${accentInfo.name}）`
+        : `播放${accentInfo.name}，不显示拼写`,
+    );
+    elements.spellingSpeak.title = revealed
+      ? `朗读发音（${accentInfo.name}）`
+      : `先听${accentInfo.name}，不显示拼写`;
+  }
+
+  function clearSpellingReveal() {
+    elements.spellingFeedback.hidden = true;
+    elements.spellingFeedback.classList.remove("is-correct", "is-wrong", "is-skipped");
+    elements.spellingFeedbackTitle.textContent = "";
+    elements.spellingFeedbackTitle.classList.remove("is-correct", "is-wrong", "is-skipped");
+    elements.spellingFeedbackDetail.textContent = "";
+    elements.spellingRevealWord.textContent = "";
+    elements.spellingRevealPhonetic.textContent = "";
+  }
+
+  function showSpellingQuestion() {
+    const word = spellingState.words[spellingState.index];
+    const total = spellingState.words.length;
+    if (!word) {
+      refreshSpellingSetup();
+      return;
+    }
+    spellingState.phase = "question";
+    spellingState.lastCorrect = false;
+    spellingState.lastSkipped = false;
+    spellingState.lastTyped = "";
+    elements.spellingSetup.hidden = true;
+    elements.spellingResult.hidden = true;
+    elements.spellingPlay.hidden = false;
+    elements.spellingForm.hidden = false;
+    elements.spellingForm.classList.remove("is-invalid");
+    clearSpellingReveal();
+    elements.spellingRoundLabel.textContent = `第 ${spellingState.index + 1} / ${total} 题`;
+    elements.spellingScoreLabel.textContent = `答对 ${spellingState.correct}`;
+    elements.spellingMeaning.textContent = word.meaning;
+    elements.spellingPart.textContent = word.part;
+    elements.spellingPart.className = `spelling-part part-badge ${partClass(word.partKeys)}`;
+    elements.spellingInput.value = "";
+    elements.spellingInput.disabled = false;
+    elements.spellingInput.removeAttribute("aria-invalid");
+    elements.spellingInputHint.textContent = "按回车提交。不区分大小写，首尾空格不计。";
+    updateSpellingSpeak(false);
+    elements.spellingInput.focus();
+    window.requestAnimationFrame(() => {
+      if (spellingState.phase === "question") {
+        elements.spellingInput.scrollIntoView({ block: "nearest" });
+      }
+    });
+  }
+
+  function renderSpellingFeedback(word) {
+    elements.spellingForm.hidden = true;
+    elements.spellingInput.disabled = true;
+    elements.spellingFeedback.hidden = false;
+    elements.spellingFeedback.classList.remove("is-correct", "is-wrong", "is-skipped");
+    elements.spellingFeedbackTitle.classList.remove("is-correct", "is-wrong", "is-skipped");
+    let tone = "is-wrong";
+    if (spellingState.lastCorrect) {
+      tone = "is-correct";
+      elements.spellingFeedbackTitle.textContent = "拼写正确";
+      elements.spellingFeedbackDetail.textContent = "和词库中的拼写一致。";
+    } else if (spellingState.lastSkipped) {
+      tone = "is-skipped";
+      elements.spellingFeedbackTitle.textContent = "已跳过";
+      elements.spellingFeedbackDetail.textContent = "本题记为错误。";
+    } else {
+      elements.spellingFeedbackTitle.textContent = "拼写有误";
+      elements.spellingFeedbackDetail.textContent = `你的拼写：${spellingState.lastTyped}`;
+    }
+    elements.spellingFeedback.classList.add(tone);
+    elements.spellingFeedbackTitle.classList.add(tone);
+    elements.spellingRevealWord.textContent = word.word;
+    const phonetic = phoneticFor(word, state.accent);
+    elements.spellingRevealPhonetic.textContent = phonetic ? `/${phonetic}/` : "";
+    elements.spellingRevealPhonetic.lang = (accentOptions[state.accent] || accentOptions.us).lang;
+    elements.spellingScoreLabel.textContent = `答对 ${spellingState.correct}`;
+    const last = spellingState.index + 1 >= spellingState.words.length;
+    elements.spellingNext.textContent = last ? "查看成绩" : "下一题";
+    updateSpellingSpeak(true);
+    elements.spellingNext.focus();
+  }
+
+  function submitSpellingAnswer(raw, skipped) {
+    if (spellingState.phase !== "question") {
+      return;
+    }
+    const word = spellingState.words[spellingState.index];
+    if (!word) {
+      return;
+    }
+    const typed = skipped ? "" : String(raw ?? "");
+    const normalized = normalizeSpelling(typed);
+    if (!skipped && !normalized) {
+      elements.spellingForm.classList.add("is-invalid");
+      elements.spellingInput.setAttribute("aria-invalid", "true");
+      elements.spellingInputHint.textContent = "请先输入拼写，或点「跳过」。";
+      elements.spellingInput.focus();
+      return;
+    }
+    const correct = !skipped && normalized === normalizeSpelling(word.word);
+    spellingState.phase = "feedback";
+    spellingState.lastCorrect = correct;
+    spellingState.lastSkipped = Boolean(skipped);
+    spellingState.lastTyped = typed.trim();
+    if (correct) {
+      spellingState.correct += 1;
+    } else if (skipped) {
+      spellingState.skipped += 1;
+    }
+    renderSpellingFeedback(word);
+  }
+
+  function showSpellingResult() {
+    const total = spellingState.words.length;
+    const correct = spellingState.correct;
+    const wrong = Math.max(0, total - correct);
+    const percent = total ? Math.round((correct / total) * 100) : 0;
+    spellingState.phase = "result";
+    elements.spellingPlay.hidden = true;
+    elements.spellingResult.hidden = false;
+    clearSpellingReveal();
+    let title = "再练一练";
+    if (percent === 100 && total > 0) {
+      title = "全部拼对";
+    } else if (percent >= 80) {
+      title = "掌握得不错";
+    } else if (percent >= 60) {
+      title = "还不错";
+    }
+    elements.spellingResultTitle.textContent = title;
+    elements.spellingResultScore.textContent = `共 ${total} 题 · 正确率 ${percent}%`;
+    elements.spellingResultStats.replaceChildren();
+    [
+      ["答对", String(correct), ""],
+      ["答错", String(wrong), spellingState.skipped > 0 ? `其中跳过 ${spellingState.skipped}` : ""],
+      ["正确率", `${percent}%`, ""],
+    ].forEach(([label, value, note]) => {
+      const card = document.createElement("div");
+      card.className = "spelling-stat";
+      const name = document.createElement("span");
+      name.textContent = label;
+      const strong = document.createElement("strong");
+      strong.textContent = value;
+      card.append(name, strong);
+      if (note) {
+        const small = document.createElement("small");
+        small.textContent = note;
+        card.append(small);
+      }
+      elements.spellingResultStats.append(card);
+    });
+    elements.spellingRetry.focus();
+  }
+
+  function nextSpelling() {
+    if (spellingState.phase !== "feedback") {
+      return;
+    }
+    if (spellingState.index + 1 >= spellingState.words.length) {
+      showSpellingResult();
+      return;
+    }
+    spellingState.index += 1;
+    showSpellingQuestion();
+  }
+
+  function startSpelling() {
+    const pool = uniqueBattleWords(getFilteredWords());
+    if (!pool.length) {
+      spellingState.phase = "setup";
+      spellingState.words = [];
+      elements.spellingPlay.hidden = true;
+      elements.spellingResult.hidden = true;
+      elements.spellingSetup.hidden = false;
+      refreshSpellingSetup();
+      return;
+    }
+    const total = Math.min(spellingState.questionCount, pool.length);
+    spellingState.words = shuffleWords(pool).slice(0, total);
+    spellingState.index = 0;
+    spellingState.correct = 0;
+    spellingState.skipped = 0;
+    showSpellingQuestion();
+  }
+
+  function backToSpellingSetup() {
+    spellingState.phase = "setup";
+    spellingState.words = [];
+    spellingState.index = 0;
+    spellingState.correct = 0;
+    spellingState.skipped = 0;
+    elements.spellingPlay.hidden = true;
+    elements.spellingResult.hidden = true;
+    elements.spellingSetup.hidden = false;
+    clearSpellingReveal();
+    refreshSpellingSetup();
+    if (elements.spellingStart.disabled) {
+      const closeButton = elements.spellingModal.querySelector(".spelling-close");
+      if (closeButton) {
+        closeButton.focus();
+      }
+    } else {
+      elements.spellingStart.focus();
+    }
+  }
+
+  function speakCurrentSpelling() {
+    const word = spellingState.words[spellingState.index];
+    if (!word || elements.spellingModal.hidden) {
+      return;
+    }
+    const revealed = spellingState.phase !== "question";
+    playWord(word.word, state.accent, revealed ? undefined : { hideWord: true });
+  }
+
+  function openSpelling() {
+    if (!elements.randomModal.hidden) {
+      closeRandomWord();
+    }
+    if (!elements.battleModal.hidden) {
+      closeBattle();
+    }
+    spellingState.phase = "setup";
+    spellingState.words = [];
+    spellingState.index = 0;
+    spellingState.correct = 0;
+    spellingState.skipped = 0;
+    elements.spellingSetup.hidden = false;
+    elements.spellingPlay.hidden = true;
+    elements.spellingResult.hidden = true;
+    clearSpellingReveal();
+    elements.spellingModal.hidden = false;
+    refreshSpellingSetup();
+    setSpellingBackgroundInert(true);
+    syncModalScrollLock();
+    if (elements.spellingStart.disabled) {
+      const closeButton = elements.spellingModal.querySelector(".spelling-close");
+      if (closeButton) {
+        closeButton.focus();
+      }
+    } else {
+      elements.spellingStart.focus();
+    }
+  }
+
+  function closeSpelling() {
+    spellingState.phase = "setup";
+    spellingState.words = [];
+    elements.spellingModal.hidden = true;
+    setSpellingBackgroundInert(false);
+    syncModalScrollLock();
+    if (elements.spellingButton) {
+      elements.spellingButton.focus();
+    }
+  }
+
   function render() {
     const filteredWords = getFilteredWords();
     const visibleWords = filteredWords.slice(0, state.visibleLimit);
@@ -3052,6 +3437,45 @@
   elements.emptyReset.addEventListener("click", resetFilters);
   elements.randomWordButton.addEventListener("click", openRandomWord);
   elements.battleButton.addEventListener("click", openBattle);
+  if (elements.spellingButton) {
+    elements.spellingButton.addEventListener("click", openSpelling);
+  }
+  if (elements.spellingModal) {
+    elements.spellingModal.addEventListener("click", (event) => {
+      const actionButton = event.target.closest("[data-spelling-action]");
+      if (actionButton) {
+        const action = actionButton.dataset.spellingAction;
+        if (action === "close") {
+          closeSpelling();
+        } else if (action === "speak") {
+          speakCurrentSpelling();
+        } else if (action === "skip") {
+          submitSpellingAnswer("", true);
+        } else if (action === "next") {
+          nextSpelling();
+        } else if (action === "retry") {
+          startSpelling();
+        } else if (action === "back") {
+          backToSpellingSetup();
+        }
+        return;
+      }
+      const countButton = event.target.closest("[data-spelling-count]");
+      if (!countButton || countButton.disabled) {
+        return;
+      }
+      const count = Number(countButton.dataset.spellingCount);
+      if (count === 5 || count === 10 || count === 15) {
+        spellingState.questionCount = count;
+        refreshSpellingSetup();
+      }
+    });
+    elements.spellingForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitSpellingAnswer(elements.spellingInput.value, false);
+    });
+    elements.spellingStart.addEventListener("click", startSpelling);
+  }
   elements.battleModal.addEventListener("click", (event) => {
     const actionButton = event.target.closest("[data-battle-action]");
     if (actionButton) {
@@ -3171,6 +3595,29 @@
       target instanceof HTMLTextAreaElement ||
       target instanceof HTMLSelectElement;
     const battleOpen = !elements.battleModal.hidden;
+    const spellingOpen = Boolean(elements.spellingModal && !elements.spellingModal.hidden);
+
+    if (spellingOpen) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSpelling();
+        return;
+      }
+      if (
+        event.key === "Enter" &&
+        !event.repeat &&
+        !event.isComposing &&
+        spellingState.phase === "feedback" &&
+        !(target instanceof HTMLButtonElement)
+      ) {
+        event.preventDefault();
+        nextSpelling();
+        return;
+      }
+      if (event.key === "/") {
+        return;
+      }
+    }
 
     if (battleOpen) {
       if (event.key === "Escape") {
@@ -3197,7 +3644,13 @@
       }
     }
 
-    if (event.key === "/" && !isTyping && !battleOpen && elements.randomModal.hidden) {
+    if (
+      event.key === "/" &&
+      !isTyping &&
+      !battleOpen &&
+      !spellingOpen &&
+      elements.randomModal.hidden
+    ) {
       event.preventDefault();
       elements.searchInput.focus();
     }
