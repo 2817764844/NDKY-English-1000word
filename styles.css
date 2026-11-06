@@ -2791,51 +2791,61 @@ svg {
   font-size: 11px;
 }
 
-.spelling-count-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+.spelling-list-row {
+  display: grid;
+  gap: 8px;
+  margin-top: 2px;
 }
 
-.spelling-count-label {
+.spelling-list-label {
   color: var(--muted-strong);
   font-size: 12px;
   font-weight: 700;
 }
 
-.spelling-count-options {
-  display: flex;
-  gap: 5px;
+.spelling-list-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 6px;
 }
 
-.spelling-count-options button {
-  min-width: 56px;
-  height: 31px;
-  padding: 0 9px;
+.spelling-list-options button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 44px;
+  padding: 7px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--muted-strong);
+  border-radius: 8px;
+  color: var(--ink);
   background: var(--surface);
-  font-size: 11.5px;
+  text-align: left;
   cursor: pointer;
 }
 
-.spelling-count-options button:hover {
-  border-color: var(--border-strong);
-  color: var(--ink);
-}
-
-.spelling-count-options button.is-selected {
-  border-color: var(--accent);
-  color: var(--accent-dark);
-  background: var(--accent-soft);
+.spelling-list-options button strong {
+  font-size: 13px;
   font-weight: 750;
 }
 
-.spelling-count-options button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
+.spelling-list-options button span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.spelling-list-options button:hover {
+  border-color: var(--border-strong);
+}
+
+.spelling-list-options button.is-selected {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+
+.spelling-list-options button.is-selected span {
+  color: var(--accent-dark);
 }
 
 .spelling-hint,
@@ -3636,9 +3646,8 @@ svg {
     margin-left: 0;
   }
 
-  .spelling-count-row {
-    align-items: flex-start;
-    flex-direction: column;
+  .spelling-list-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .spelling-meaning {

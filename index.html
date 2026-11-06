@@ -9,7 +9,7 @@
     />
     <title>大学英语四级核心词汇</title>
     <!-- 资源版本号用于绕过 GitHub Pages 约 10 分钟的浏览器缓存；修改 styles.css/app.js/words.js 后请同步更新。 -->
-    <link rel="stylesheet" href="./styles.css?v=20261106-2" />
+    <link rel="stylesheet" href="./styles.css?v=20261106-3" />
   </head>
   <body>
     <header class="app-header">
@@ -180,7 +180,7 @@
                 class="spelling-button"
                 id="spellingButton"
                 type="button"
-                title="看中文释义，拼写对应的英文单词"
+                title="按 List 拼写其中的全部单词"
               >
                 <svg aria-hidden="true" viewBox="0 0 24 24">
                   <path d="M12 20h9" />
@@ -757,40 +757,29 @@
 
         <div class="spelling-setup" id="spellingSetup">
           <p class="spelling-lead">
-            看中文释义，写出英文拼写。作答前可以听发音，提交或跳过之后才显示单词。
+            每次测试一个 List，题数就是该 List 的不重复单词数。作答前可以听发音，提交或跳过之后才显示单词。
           </p>
-          <div class="spelling-scope">
-            <span class="spelling-scope-label">出题范围</span>
-            <strong id="spellingScopeLabel">全部词汇</strong>
-            <span class="spelling-scope-count" id="spellingScopeCount">0 个不重复单词</span>
+          <div class="spelling-list-row" id="spellingListRow" hidden>
+            <span class="spelling-list-label">选择 List</span>
+            <div class="spelling-list-options" id="spellingListOptions" role="group" aria-label="选择 List"></div>
           </div>
-          <div class="spelling-count-row" id="spellingCountRow">
-            <span class="spelling-count-label">题目数量</span>
-            <div class="spelling-count-options" role="group" aria-label="题目数量">
-              <button type="button" data-spelling-count="5">5 题</button>
-              <button
-                class="is-selected"
-                type="button"
-                data-spelling-count="10"
-                aria-pressed="true"
-              >
-                10 题
-              </button>
-              <button type="button" data-spelling-count="15">15 题</button>
-            </div>
+          <div class="spelling-scope">
+            <span class="spelling-scope-label">测试 List</span>
+            <strong id="spellingScopeLabel">请选择 List</strong>
+            <span class="spelling-scope-count" id="spellingScopeCount">尚未选择题数</span>
           </div>
           <p class="spelling-empty" id="spellingEmpty" role="status" hidden>
-            当前筛选范围没有可拼写的单词。请更换 List，或清除搜索、词性、收藏和进度筛选。
+            这个 List 没有可拼写的单词。
           </p>
           <p class="spelling-hint" id="spellingHint">
-            不区分大小写，首尾空格不计。同一拼写只出现一次，不会自动修改学习进度。
+            请选择一个 List。测试会覆盖该 List 的全部不重复单词，不会自动修改学习进度。
           </p>
           <button class="spelling-start" id="spellingStart" type="button">开始拼写测试</button>
         </div>
 
         <div class="spelling-play" id="spellingPlay" hidden>
           <div class="spelling-progress-row">
-            <span id="spellingRoundLabel">第 1 / 10 题</span>
+            <span id="spellingRoundLabel">第 1 题</span>
             <span id="spellingScoreLabel">答对 0</span>
           </div>
           <p class="spelling-prompt-label">根据释义拼写</p>
@@ -881,6 +870,6 @@
     </noscript>
 
     <script src="./words.js?v=20261105-1"></script>
-    <script src="./app.js?v=20261106-2"></script>
+    <script src="./app.js?v=20261106-3"></script>
   </body>
 </html>
