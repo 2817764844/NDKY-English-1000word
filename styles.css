@@ -17,16 +17,23 @@
   --gold-soft: #f8edcb;
   --blue-soft: #e2ebf7;
   --purple-soft: #ece6f7;
-  --shadow: 0 12px 30px rgba(26, 50, 41, 0.07);
-  --radius: 8px;
+  --shadow: 0 10px 28px rgba(26, 50, 41, 0.07);
+  --radius: 10px;
+  --radius-sm: 8px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --control-h: 40px;
   /* 单词表列宽，窄屏时在媒体查询里覆写 */
-  --col-order: 68px;
+  --col-order: 64px;
   --col-word: minmax(150px, 0.95fr);
   --col-phonetic: minmax(112px, 0.55fr);
-  --col-part: 100px;
+  --col-part: 96px;
   --col-meaning: minmax(220px, 2.5fr);
   --col-audio: 46px;
-  --col-progress: 52px;
+  --col-progress: 64px;
   --col-favorite: 48px;
 }
 
@@ -47,7 +54,7 @@ body {
   min-height: 100vh;
   margin: 0;
   /* 给右下角固定的发音/练习控制条留出空间（现在有两行） */
-  padding-bottom: 150px;
+  padding-bottom: 148px;
   color: var(--ink);
   background:
     linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.25)),
@@ -103,9 +110,10 @@ svg {
   position: sticky;
   top: 0;
   z-index: 20;
-  border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(196, 209, 202, 0.85);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 250, 248, 0.94) 100%);
+  backdrop-filter: blur(14px);
 }
 
 .header-inner {
@@ -115,90 +123,148 @@ svg {
   width: min(1480px, calc(100% - 40px));
   min-height: 78px;
   margin: 0 auto;
+  padding: 14px 0;
+  gap: var(--space-4);
 }
 
 .brand {
   display: flex;
   align-items: center;
   min-width: 0;
-  gap: 13px;
+  gap: 14px;
 }
 
 .brand-mark {
-  display: grid;
+  position: relative;
+  display: flex;
   flex: 0 0 auto;
-  place-content: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 14px;
   color: #ffffff;
-  background: var(--accent);
-  box-shadow: 0 7px 16px rgba(15, 118, 110, 0.2);
+  background:
+    linear-gradient(145deg, #14978c 0%, var(--accent) 48%, var(--accent-dark) 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.28) inset,
+    0 10px 22px rgba(15, 118, 110, 0.22);
   line-height: 1;
 }
 
-.brand-mark span {
-  font-family: "Segoe UI", sans-serif;
-  font-size: 10px;
+.brand-mark-label {
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
+  opacity: 0.92;
 }
 
-.brand-mark strong {
-  font-family: "Georgia", serif;
-  font-size: 23px;
+.brand-mark-num {
+  margin-top: 2px;
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
 }
 
 .brand-copy {
+  display: grid;
   min-width: 0;
+  gap: 5px;
+}
+
+.brand-eyebrow {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 9px;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: 999px;
+  color: var(--accent-dark);
+  background: linear-gradient(180deg, #eef7f4 0%, var(--accent-soft) 100%);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.brand-meta {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .brand-copy h1 {
   overflow: hidden;
   margin: 0;
-  font-size: 18px;
+  color: var(--ink);
+  font-size: 20px;
   font-weight: 750;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.brand-copy p {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-
 .header-summary {
   display: flex;
-  align-items: center;
-  gap: 18px;
-  color: var(--muted-strong);
-  font-size: 13px;
+  align-items: stretch;
+  flex: 0 0 auto;
+  gap: 10px;
 }
 
-.header-summary span + span {
-  padding-left: 18px;
-  border-left: 1px solid var(--border);
+.header-stat {
+  display: grid;
+  min-width: 84px;
+  padding: 8px 14px;
+  border: 1px solid rgba(196, 209, 202, 0.95);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f7fbf9 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  gap: 2px;
 }
 
-.header-summary strong {
+.header-stat strong {
   color: var(--accent-dark);
-  font-family: "Georgia", serif;
-  font-size: 17px;
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.header-stat span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .app-shell {
   display: grid;
-  grid-template-columns: 238px minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: var(--space-5);
   width: min(1480px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 24px 0 52px;
+  padding: var(--space-5) 0 48px;
 }
 
 .list-sidebar {
   position: sticky;
-  top: 102px;
+  top: 96px;
   align-self: start;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -211,8 +277,8 @@ svg {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 49px;
-  padding: 0 15px;
+  min-height: 48px;
+  padding: 0 var(--space-4);
   border-bottom: 1px solid var(--border);
   color: var(--muted-strong);
   font-size: 12px;
@@ -236,18 +302,18 @@ svg {
 
 .list-nav {
   display: grid;
-  gap: 3px;
-  padding: 8px;
+  gap: var(--space-1);
+  padding: var(--space-2);
 }
 
 .list-nav button {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
-  min-height: 42px;
-  padding: 0 10px;
+  min-height: 40px;
+  padding: 0 var(--space-3);
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   text-align: left;
   cursor: pointer;
@@ -292,8 +358,8 @@ svg {
 
 .sidebar-note {
   display: flex;
-  gap: 9px;
-  padding: 13px 14px 15px;
+  gap: 10px;
+  padding: var(--space-3) var(--space-4);
   color: var(--muted);
   background: #fafcfb;
   font-size: 11px;
@@ -323,9 +389,10 @@ svg {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(250px, 1fr) 160px auto;
-  gap: 10px;
-  padding: 10px;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(128px, 148px) auto minmax(128px, 148px);
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -337,9 +404,9 @@ svg {
   position: relative;
   display: flex;
   align-items: center;
-  height: 42px;
+  height: var(--control-h);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #ffffff;
 }
 
@@ -351,9 +418,9 @@ svg {
 
 .search-field > svg {
   flex: 0 0 auto;
-  width: 17px;
-  height: 17px;
-  margin-left: 13px;
+  width: 16px;
+  height: 16px;
+  margin-left: var(--space-3);
   color: var(--muted);
 }
 
@@ -361,7 +428,7 @@ svg {
   min-width: 0;
   width: 100%;
   height: 100%;
-  padding: 0 42px 0 10px;
+  padding: 0 40px 0 10px;
   border: 0;
   outline: 0;
   color: var(--ink);
@@ -375,14 +442,14 @@ svg {
 
 .search-clear {
   position: absolute;
-  right: 7px;
+  right: 6px;
   display: grid;
   width: 28px;
   height: 28px;
   padding: 0;
   place-items: center;
   border: 0;
-  border-radius: 5px;
+  border-radius: 6px;
   color: var(--muted);
   background: transparent;
   cursor: pointer;
@@ -424,12 +491,12 @@ svg {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 106px;
-  height: 42px;
-  padding: 0 13px;
-  gap: 7px;
+  min-width: 100px;
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  gap: 6px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--muted-strong);
   background: #ffffff;
   font-size: 12.5px;
@@ -495,13 +562,13 @@ svg {
   display: flex;
   align-items: end;
   justify-content: space-between;
-  min-height: 105px;
-  padding: 24px 2px 16px;
-  gap: 20px;
+  min-height: 0;
+  padding: var(--space-5) 2px var(--space-4);
+  gap: var(--space-4);
 }
 
 .eyebrow {
-  margin: 0 0 5px;
+  margin: 0 0 var(--space-1);
   color: var(--warm);
   font-size: 11px;
   font-weight: 800;
@@ -528,6 +595,7 @@ svg {
   color: var(--muted);
   font-size: 12px;
   font-weight: 650;
+  line-height: 1.4;
 }
 
 .heading-actions {
@@ -535,25 +603,34 @@ svg {
   flex: 0 0 auto;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  gap: 10px;
+}
+
+.heading-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 6px 12px;
+  text-align: right;
 }
 
 .heading-buttons {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .battle-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 116px;
-  height: 40px;
+  min-width: 112px;
+  height: var(--control-h);
   padding: 0 14px;
-  gap: 7px;
+  gap: 6px;
   border: 1px solid #9fcec5;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--accent-dark);
   background: var(--accent-soft);
   font-size: 12.5px;
@@ -586,12 +663,12 @@ svg {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 116px;
-  height: 40px;
+  min-width: 112px;
+  height: var(--control-h);
   padding: 0 14px;
-  gap: 7px;
+  gap: 6px;
   border: 1px solid #f0b18f;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: #8c3e1d;
   background: var(--warm-soft);
   font-size: 12.5px;
@@ -760,6 +837,8 @@ svg {
 .random-card-progress-row {
   display: flex;
   justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
   margin-top: 16px;
 }
 
@@ -841,13 +920,14 @@ svg {
 }
 
 .word-list-head {
-  min-height: 43px;
-  padding: 0 12px;
+  min-height: 44px;
+  padding: 0 var(--space-4);
   border-bottom: 1px solid var(--border);
   color: var(--muted);
   background: #f6f9f7;
   font-size: 11px;
   font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 .word-list {
@@ -857,8 +937,8 @@ svg {
 }
 
 .word-row {
-  min-height: 58px;
-  padding: 0 12px;
+  min-height: 56px;
+  padding: 0 var(--space-4);
   border-bottom: 1px solid #e8eeeb;
   transition:
     background 130ms ease,
@@ -876,7 +956,7 @@ svg {
 }
 
 .word-row.is-new-list {
-  border-top: 8px solid var(--surface-soft);
+  border-top: 6px solid var(--surface-soft);
 }
 
 .word-order {
@@ -888,12 +968,12 @@ svg {
 .word-name {
   position: relative;
   overflow-wrap: anywhere;
-  padding-right: 12px;
+  padding-right: var(--space-3);
   color: #173f38;
   font-family: "Georgia", "Times New Roman", serif;
-  font-size: 16.5px;
+  font-size: 16px;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .word-text {
@@ -936,7 +1016,7 @@ svg {
   padding: 0;
   place-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: #7e8d87;
   background: transparent;
   cursor: pointer;
@@ -999,8 +1079,8 @@ svg {
   width: max-content;
   min-width: 36px;
   min-height: 24px;
-  padding: 3px 7px;
-  border-radius: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
   color: #475650;
   background: #edf1ef;
   font-family: "Consolas", "SFMono-Regular", monospace;
@@ -1032,10 +1112,10 @@ svg {
 .meaning {
   position: relative;
   min-width: 0;
-  padding-right: 34px;
+  padding-right: 32px;
   color: #34423c;
   font-size: 13.5px;
-  line-height: 1.55;
+  line-height: 1.5;
   transition:
     filter 160ms ease,
     opacity 160ms ease;
@@ -1093,51 +1173,96 @@ svg {
 
 .progress-button {
   display: inline-grid;
-  min-width: 40px;
-  height: 28px;
-  padding: 0 7px;
+  min-width: 48px;
+  min-height: 34px;
+  height: 34px;
+  padding: 0 10px;
   place-items: center;
-  border: 1px solid var(--border-strong);
+  border: 1.5px solid var(--border-strong);
   border-radius: 999px;
   color: var(--muted-strong);
   background: #ffffff;
-  font-size: 11px;
-  font-weight: 750;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
   white-space: nowrap;
   cursor: pointer;
+  box-shadow: 0 1px 0 rgba(23, 33, 29, 0.04);
   transition:
     border-color 140ms ease,
     color 140ms ease,
-    background 140ms ease;
+    background 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
 }
 
 .progress-button:hover {
-  border-color: #9db8ae;
+  border-color: #7aa89c;
   color: var(--accent-dark);
-  background: #f8fbfa;
+  background: #eef7f4;
+  box-shadow: 0 2px 6px rgba(15, 118, 110, 0.12);
+}
+
+.progress-button:focus-visible {
+  outline: 2px solid rgba(15, 118, 110, 0.45);
+  outline-offset: 2px;
+}
+
+.progress-button:active {
+  transform: translateY(1px);
 }
 
 .progress-button[data-progress="unknown"] {
-  color: #7a8781;
-  background: #f4f6f5;
+  border-color: #9aa8a1;
+  color: #3d4a44;
+  background: #e8ecea;
+  box-shadow: inset 0 0 0 1px rgba(61, 74, 68, 0.04);
+}
+
+.progress-button[data-progress="unknown"]:hover {
+  border-color: #7f8f87;
+  color: #2c3732;
+  background: #dde4e0;
 }
 
 .progress-button[data-progress="fuzzy"] {
-  border-color: #e3c0b4;
-  color: #a3543d;
-  background: #fdf1ec;
+  border-color: #d9896a;
+  color: #8a341f;
+  background: #fce3d6;
+  box-shadow: 0 1px 0 rgba(196, 90, 45, 0.12);
+}
+
+.progress-button[data-progress="fuzzy"]:hover {
+  border-color: #c45a2d;
+  color: #6f2714;
+  background: #f8d4c0;
 }
 
 .progress-button[data-progress="mastered"] {
-  border-color: #9fcfc6;
-  color: var(--accent-dark);
-  background: var(--accent-soft);
+  border-color: #2f9f8f;
+  color: #065f56;
+  background: #c7ebe4;
+  box-shadow: 0 1px 0 rgba(15, 118, 110, 0.14);
+}
+
+.progress-button[data-progress="mastered"]:hover {
+  border-color: #0f766e;
+  color: #064840;
+  background: #b5e3da;
 }
 
 .random-progress-button {
-  min-width: 72px;
-  height: 30px;
-  font-size: 12px;
+  min-width: 96px;
+  min-height: 40px;
+  height: 40px;
+  padding: 0 16px;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(23, 33, 29, 0.08);
+}
+
+.random-progress-button:hover {
+  box-shadow: 0 3px 10px rgba(15, 118, 110, 0.16);
 }
 
 .favorite-button {
@@ -1408,7 +1533,7 @@ svg {
 }
 
 .load-more-wrap {
-  padding: 18px;
+  padding: var(--space-4);
   border-top: 1px solid var(--border);
   text-align: center;
   background: #fafcfb;
@@ -1416,12 +1541,12 @@ svg {
 
 .study-controls {
   position: fixed;
-  right: 24px;
-  bottom: 20px;
+  right: var(--space-5);
+  bottom: var(--space-4);
   z-index: 40;
   display: grid;
-  gap: 8px;
-  padding: 10px;
+  gap: var(--space-2);
+  padding: var(--space-2);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.96);
@@ -1431,9 +1556,9 @@ svg {
 
 .controls-row {
   display: grid;
-  grid-template-columns: 76px 118px 118px;
+  grid-template-columns: 72px 118px 118px;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .controls-label {
@@ -1449,11 +1574,11 @@ svg {
   align-items: center;
   justify-content: center;
   min-width: 118px;
-  height: 40px;
-  padding: 0 13px;
-  gap: 7px;
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  gap: 6px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--muted-strong);
   background: #ffffff;
   font-size: 12.5px;
@@ -2534,7 +2659,7 @@ svg {
     --col-part: 86px;
     --col-meaning: minmax(180px, 2fr);
     --col-audio: 42px;
-    --col-progress: 48px;
+    --col-progress: 60px;
     --col-favorite: 44px;
   }
 
@@ -2552,12 +2677,12 @@ svg {
     --col-word: minmax(120px, 1fr);
     --col-part: 76px;
     --col-meaning: minmax(150px, 1.8fr);
-    --col-progress: 44px;
+    --col-progress: 56px;
     --col-favorite: 42px;
   }
 
   .toolbar {
-    grid-template-columns: minmax(230px, 1fr) 150px auto;
+    grid-template-columns: minmax(180px, 1fr) minmax(120px, 136px) auto minmax(120px, 136px);
   }
 
   /* 隐藏独立朗读列，改用单词旁的紧凑按钮。 */
@@ -2586,22 +2711,28 @@ svg {
 
   .header-inner {
     min-height: 68px;
+    padding: 12px 0;
+  }
+
+  .brand {
+    gap: 12px;
   }
 
   .brand-mark {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
   }
 
-  .brand-mark strong {
-    font-size: 20px;
+  .brand-mark-num {
+    font-size: 18px;
   }
 
   .brand-copy h1 {
-    font-size: 15px;
+    font-size: 16px;
   }
 
-  .brand-copy p,
+  .brand-meta,
   .header-summary {
     display: none;
   }
@@ -2613,7 +2744,7 @@ svg {
 
   .list-sidebar {
     position: sticky;
-    top: 68px;
+    top: 76px;
     z-index: 15;
     margin-bottom: 12px;
     box-shadow: 0 8px 20px rgba(26, 50, 41, 0.08);
@@ -2652,9 +2783,10 @@ svg {
   }
 
   .toolbar {
-    grid-template-columns: minmax(0, 1fr) 130px;
+    grid-template-columns: 1fr 1fr auto;
     position: relative;
     z-index: 10;
+    gap: var(--space-2);
   }
 
   .search-field {
@@ -2670,8 +2802,8 @@ svg {
   }
 
   .content-heading {
-    min-height: 92px;
-    padding-top: 20px;
+    min-height: 0;
+    padding-top: var(--space-4);
   }
 
   .content-heading h2 {
@@ -2681,7 +2813,11 @@ svg {
   .heading-actions {
     flex-direction: column;
     align-items: flex-end;
-    gap: 7px;
+    gap: var(--space-2);
+  }
+
+  .heading-meta {
+    justify-content: flex-end;
   }
 
   .random-word-button,
@@ -2716,14 +2852,15 @@ svg {
   }
 
   .word-row {
-    grid-template-columns: 42px minmax(0, 1fr) 40px 40px;
+    grid-template-columns: 40px minmax(0, 1fr) 40px 40px;
     grid-template-areas:
       "order word progress favorite"
       "order part progress favorite"
       "order meaning progress favorite";
     align-items: start;
     min-height: 0;
-    padding: 13px 10px;
+    padding: var(--space-3) 10px;
+    row-gap: 2px;
   }
 
   .word-order {
@@ -2754,7 +2891,11 @@ svg {
     grid-area: progress;
     align-self: start;
     justify-self: center;
+    min-width: 52px;
+    min-height: 36px;
+    height: 36px;
     margin-top: 2px;
+    font-size: 13px;
   }
 
   .favorite-button {
@@ -2845,12 +2986,18 @@ svg {
   .content-heading {
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
+    gap: var(--space-3);
   }
 
   .heading-actions {
     width: 100%;
     align-items: flex-start;
+  }
+
+  .heading-meta {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
   }
 
   .heading-buttons {
@@ -2969,7 +3116,26 @@ svg {
   }
 
   .brand-copy h1 {
-    max-width: 210px;
+    max-width: 220px;
+  }
+
+  .brand-badge {
+    height: 20px;
+    padding: 0 8px;
+    font-size: 10px;
+  }
+
+  .brand-mark {
+    width: 40px;
+    height: 40px;
+  }
+
+  .brand-mark-label {
+    font-size: 8px;
+  }
+
+  .brand-mark-num {
+    font-size: 16px;
   }
 
   .app-shell {
@@ -2978,11 +3144,11 @@ svg {
 
   .toolbar {
     grid-template-columns: 1fr 1fr;
-    padding: 8px;
+    padding: var(--space-2);
   }
 
-  .select-field {
-    grid-column: 1 / -1;
+  .toolbar .select-field {
+    grid-column: auto;
   }
 
   .toolbar-button {
