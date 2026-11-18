@@ -220,7 +220,7 @@
     randomFavoriteButton: document.querySelector("#randomFavoriteButton"),
     randomForgotButton: document.querySelector("#randomForgotButton"),
     randomForgotLabel: document.querySelector("#randomForgotLabel"),
-    randomKnowButton: document.querySelector("#randomKnowButton"),
+    randomNextButton: document.querySelector("#randomNextButton"),
     randomProgressButton: document.querySelector("#randomProgressButton"),
     randomProgressLabel: document.querySelector("#randomProgressLabel"),
     randomNextLabel: document.querySelector("#randomNextLabel"),
@@ -1062,17 +1062,24 @@
     renderRandomWord();
   }
 
-  function markRandomWordKnown() {
-    if (!activeRandomWord) {
-      return;
+  // 「再抽一个」默认把当前词标为已掌握。本次抽取里已经点过「遗忘」的词保持原进度。
+  // 只打开或关闭弹窗不会走到这里。
+  function drawNextRandomWord() {
+    const current = activeRandomWord;
+    const markedForgotten = Boolean(current && forgottenWords.has(current.id));
+    let progressChanged = false;
+    if (current && !markedForgotten && getProgress(current.id) !== "mastered") {
+      setProgress(current.id, "mastered");
+      progressChanged = true;
     }
-    setProgress(activeRandomWord.id, "mastered");
-    if (forgottenWords.has(activeRandomWord.id)) {
-      forgottenWords.delete(activeRandomWord.id);
+    // 标进度会改变「按进度筛选」后的候选集。这一轮洗牌还在进行，不能当成切换了词汇范围。
+    if (current) {
+      randomBagScope = getFilteredWords().map((word) => word.id).join(",");
     }
-    showToast("已标为已掌握");
-    render();
-    renderRandomWord();
+    openRandomWord();
+    if (progressChanged) {
+      render();
+    }
   }
 
   function cycleRandomWordProgress() {
@@ -1123,11 +1130,10 @@
     elements.randomForgotButton.title = isForgotten
       ? "取消留到下一轮"
       : "没记住，标为模糊并留到下一轮再抽";
-
-    const isMastered = progress.status === "mastered";
-    if (elements.randomKnowButton) {
-      elements.randomKnowButton.setAttribute("aria-pressed", isMastered ? "true" : "false");
-      elements.randomKnowButton.title = isMastered ? "当前已是已掌握" : "已记住，标为已掌握";
+    if (elements.randomNextButton) {
+      elements.randomNextButton.title = isForgotten
+        ? "已点遗忘，保持模糊并抽取下一个"
+        : "默认标为已掌握，再抽取下一个";
     }
 
     if (randomBag.length === 0) {
@@ -3609,8 +3615,6 @@
     const action = actionButton.dataset.randomAction;
     if (action === "close") {
       closeRandomWord();
-    } else if (action === "next") {
-      openRandomWord();
     } else if (action === "reveal-meaning" && activeRandomWord) {
       randomMeaningRevealed = !randomMeaningRevealed;
       updateRandomMeaningState();
@@ -3618,8 +3622,8 @@
       playWord(activeRandomWord.word, state.accent);
     } else if (action === "forget") {
       toggleForgottenWord();
-    } else if (action === "know") {
-      markRandomWordKnown();
+    } else if (action === "next") {
+      drawNextRandomWord();
     } else if (action === "progress") {
       cycleRandomWordProgress();
     } else if (action === "favorite" && activeRandomWord) {
