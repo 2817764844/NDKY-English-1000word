@@ -23,8 +23,9 @@
 | 真人发音 | 每个词条都有美式/英式真人录音，点击喇叭按钮即可朗读 |
 | 音标显示 | 456 个词条全部带 IPA 音标，随美音/英音切换 |
 | 例句搭配 | 每个词条可展开同义词、常用搭配和双语例句，例句也能点读 |
-| 收藏生词 | 使用本地浏览器存储收藏状态，无需登录 |
-| 学习进度 | 词条旁一键循环标记「生词 / 模糊 / 已掌握」，可按进度筛选；随机抽词里「遗忘」标模糊，点「再抽一个」默认标已掌握；数据存本机，不改动词库 |
+| 收藏生词 | 默认记在本机。登录后按并集规则同步，较新的取消收藏会同步到其他设备 |
+| 学习进度 | 词条旁一键循环标记「生词 / 模糊 / 已掌握」，可按进度筛选；随机抽词里「遗忘」标模糊，点「再抽一个」默认标已掌握；不改动词库。登录后同步，旧数据取更熟的一边 |
+| 打卡统计 | 「我的」里可看连续打卡、当月日历，以及生词 / 模糊 / 已掌握概览。不登录也记在本机 |
 | 练习模式 | 可独立遮住英文单词或中文释义，点击词条逐条查看 |
 | 听音辨词 | 遮住单词后朗读按钮仍然可用，可配合「点击即读」做听写练习 |
 | 响应式布局 | 同时适配电脑、平板和手机 |
@@ -107,23 +108,23 @@
 
 ## 安卓安装包
 
-网页本身仍是仓库根目录的静态文件，GitHub Pages 直接发布根目录，不需要构建。安卓包用 [Capacitor](https://capacitorjs.com/) 把同一套页面装进 WebView，方便旁加载安装。应用名是「四级核心词」，包名 `com.lostlisa.cet4words`，最低 Android 8.0（API 24），默认竖屏。收藏和学习进度走 WebView 的 `localStorage`，和浏览器里的数据不互通。
+网页本身仍是仓库根目录的静态文件，GitHub Pages 直接发布根目录，不需要构建。安卓包用 [Capacitor](https://capacitorjs.com/) 把同一套页面装进 WebView，方便旁加载安装。应用名是「四级核心词」，包名 `com.lostlisa.cet4words`，最低 Android 8.0（API 24），默认竖屏。收藏和学习进度先写 WebView 的 `localStorage`。浏览器和安卓壳的本机存储仍然各存各的；登录同一个邮箱后，会按下面的规则合并到云端。
 
-当前调试包版本是 **1.3**（`versionCode` 4）。「遮住单词」和「遮住释义」固定在屏幕底部：手机上位于底部导航之上，桌面是底部一条练习条。发音和例句开关仍留在词表上方。1.0 在全面屏上会让状态栏和挖孔盖住页头。1.1 起，应用按系统上报的状态栏、挖孔、底部导航（手势条或三键）和键盘高度给 WebView 留边，不写死某一款手机的像素。网页端继续用 CSS `env(safe-area-inset-*)`；进到安卓应用后页面会带上 `native-safe-area`，这段 CSS 安全区改为 0，避免和原生边距叠成两层空白。1.2 起，只在安卓壳里检查 GitHub Releases，有更高的 `versionCode` 时才会用中文询问是否更新。设置里看到的版本号是 1.3 就是这一个包。请直接覆盖安装，不要卸载，否则本机收藏和学习进度会丢。签名必须和 1.0 / 1.1 / 1.2 的调试证书相同。
+当前调试包版本是 **1.4**（`versionCode` 5）。「遮住单词」和「遮住释义」固定在屏幕底部：手机上位于底部导航之上，桌面是底部一条练习条。发音和例句开关仍留在词表上方。1.0 在全面屏上会让状态栏和挖孔盖住页头。1.1 起，应用按系统上报的状态栏、挖孔、底部导航（手势条或三键）和键盘高度给 WebView 留边，不写死某一款手机的像素。网页端继续用 CSS `env(safe-area-inset-*)`；进到安卓应用后页面会带上 `native-safe-area`，这段 CSS 安全区改为 0，避免和原生边距叠成两层空白。1.2 起，只在安卓壳里检查 GitHub Releases，有更高的 `versionCode` 时才会用中文询问是否更新。1.4 增加可选的邮箱账号、云同步，以及学习统计和打卡。设置里看到的版本号是 1.4 就是这一个包。请直接覆盖安装，不要卸载，否则本机收藏和学习进度会丢。签名必须和 1.0 / 1.1 / 1.2 / 1.3 的调试证书相同。
 
 ### 发布一个可被应用发现的版本
 
 应用不会看网页部署，只看这个仓库的 **正式 Release**（Draft 和 Pre-release 会忽略）。仓库里还没有 Release 时，打开应用不会出现更新提示。
 
 1. 用同一把调试证书打出 APK（`./gradlew assembleDebug` 使用的 `~/.android/debug.keystore`，证书 SHA-256 为 `fa511cf80921e2d958ca248165c9248468b5232753ab509fbfba27820fa86597`）。`versionCode` 必须比已安装的包更大，否则 Android 拒绝覆盖安装，应用也不会提示。
-2. 在 GitHub 上新建 Release。标签用 `v` 加 versionName，例如 `v1.4`。不要勾选 Pre-release。
+2. 在 GitHub 上新建 Release。标签用 `v` 加 versionName，例如 `v1.5`。不要勾选 Pre-release。
 3. 把 APK 作为附件上传，文件名必须是：
 
 ```text
 cet4-words-<versionName>-<versionCode>.apk
 ```
 
-例如 versionName `1.4`、versionCode `5` 时，文件名是 `cet4-words-1.4-5.apk`。versionName 只允许 `1.2` 或 `1.2.3` 这种两段或三段数字。其他文件名会被忽略。当前安装包是 1.3（versionCode 4），下一版的 versionCode 必须大于 4。
+例如 versionName `1.5`、versionCode `6` 时，文件名是 `cet4-words-1.5-6.apk`。versionName 只允许 `1.2` 或 `1.2.3` 这种两段或三段数字。其他文件名会被忽略。当前安装包是 1.4（versionCode 5），下一版的 versionCode 必须大于 5。
 
 应用启动大约 1 秒后请求 `GET /repos/2817764844/NDKY-English-1000word/releases?per_page=30`。它在所有正式 Release 的附件里找出符合上面文件名、并且 `versionCode` 比当前安装包更大的 APK，选最大的一个。检查失败、已经是最新、或用户点过「稍后再说」的那个 versionCode，都不会弹窗。网页和桌面浏览器不跑这套流程。
 
@@ -139,9 +140,62 @@ cd android
 ./gradlew assembleDebug
 ```
 
-调试包在 `android/app/build/outputs/apk/debug/app-debug.apk`。`npm run sync:www` 会把根目录的 `index.html`、`styles.css`、`app.js`、`words.js` 复制到 `www/`，再交给 Capacitor。不要把 APK、`www/` 或 `android` 的构建目录提交进仓库。
+调试包在 `android/app/build/outputs/apk/debug/app-debug.apk`。`npm run sync:www` 会把根目录的 `index.html`、`styles.css`、`app.js`、`words.js`、`cloud-config.js`、`account-sync.js`、`account.js`、`update-check.js`、`update.js` 复制到 `www/`，再交给 Capacitor。不要把 APK、`www/` 或 `android` 的构建目录提交进仓库。
 
 在手机上安装：打开系统设置，允许「安装未知应用」（不同品牌也叫「未知来源」），把 APK 传到手机后点开安装。
+
+## 账号、云同步和打卡
+
+账号是可选的。不登录时，词表、随机抽词、拼写、对战、收藏、进度、打卡和统计都可以用，数据写在这台设备的 `localStorage`。桌面右上角和手机底部导航都有「我的」。
+
+### 为什么用 MemFire / Supabase 的邮箱密码
+
+页面发布在 GitHub Pages，安卓壳也只是同一个静态页，没有自带后端。用户在国内，不能做成只能走 Google 的登录。
+
+选用的是 **GoTrue 邮箱 + 密码**，再加上一行 Postgres 数据。国内优先用 [MemFire Cloud](https://cloud.memfiredb.com)：服务器在国内，接口和 Supabase 相同（`/auth/v1` 注册登录，`/rest/v1` 读写）。[Supabase](https://supabase.com) 可以原样替换 URL 和 anon key，但 `*.supabase.co` 在大陆时通时断，不适合作为默认。Firebase 即使用邮箱密码，请求仍走 Google 接口，国内更不稳定。LeanCloud 已停止新用户注册。腾讯云开发的邮箱登录是验证码，不是密码。
+
+客户端只保存 **anon public key**。它本来就可以出现在网页里。安全靠数据库的行级策略：每人只能读写自己的那一行。**不要**把 `service_role` 或服务账号密钥写进仓库。
+
+当前仓库里的 `cloud-config.js` 是空的。在填上项目 URL 和 anon key 之前，登录按钮会说明「云同步未配置」，不会假装已经登录成功。打卡和统计照常记在本机。
+
+### 配置步骤
+
+1. 打开 [MemFire Cloud](https://cloud.memfiredb.com)（或 Supabase）并创建一个应用。
+2. 在 SQL Editor 执行 `supabase/study_state.sql`。
+3. 在认证设置里打开邮箱密码登录。建议先关闭「注册后必须点邮件确认」，否则用户要先打开确认信才能登录。两种行为页面都能处理。
+4. 把站点 URL 设成 GitHub Pages 地址，并允许 `https://localhost`（安卓壳的页面来源）。忘记密码的邮件会回到这个地址。
+5. 复制 Project URL 和 **anon public** key，填进根目录的 `cloud-config.js`：
+
+```javascript
+window.CET4_CLOUD = {
+  url: "https://你的项目地址",
+  anonKey: "你的 anon public key",
+};
+```
+
+6. 把改过的 `cloud-config.js` 提交并发布。anon key 可以公开；`service_role` 留在控制台。云端地址使用 https。只有 `localhost` / `127.0.0.1` 允许 http，方便在本机试接口。
+
+换设备登录同一个邮箱后，会拉下云端记录并和本机合并，再写回云端。离线时照常写本机，并打上待同步标记；联网或重新打开页面后自动再试。
+
+### 合并规则
+
+旧版本没有逐条修改时间。升级前就存在的进度和收藏，时间戳记为 0。
+
+- **进度**：同一词如果两边时间戳相同（包括都是旧数据），取得更熟的一边：生词 < 模糊 < 已掌握。这样空的云端或另一台没学过的设备不会把已掌握盖掉。升级之后每次手动改进度都会记下时间；较新的一次生效，所以后来把「已掌握」改回「模糊」或「生词」也会同步。
+- **收藏**：旧数据取并集，一边收藏过就会留下。升级之后取消收藏会记下时间，较新的取消会在其他设备生效。
+- **打卡**：按日期取并集。同一天只要有一边打过卡就算打过，学习次数取较大值。
+
+### 打卡规则
+
+当天满足下面任一条件即打卡：
+
+- 点「我的」里的「今日打卡」
+- 标记学习进度（含随机抽词里的「遗忘」和「再抽一个」）
+- 收藏或取消收藏
+- 提交一次拼写（含跳过）
+- 提交一次对战答案（含超时）
+
+只打开页面或滚动浏览不算。连续天数按设备本地日期计算。今天已经打卡，就从今天往前数；今天还没有、昨天有，连续天数先保留到昨天；中间断了一天则为 0。未登录的打卡记在本机，登录后并入云端。
 
 ## 直接使用
 
@@ -347,6 +401,8 @@ jobs:
 - 修改 `网页版单词表/app.js` 可调整筛选、收藏、练习模式、发音和例句展开逻辑。
 - 修改 `网页版单词表/words.js` 可替换或扩充词汇数据（含音标与语料）。
 - 收藏记录保存在浏览器的 `cet4-favorites` 本地存储项中。
+- 学习进度保存在 `cet4-progress`。打卡在 `cet4-stats`。同步用的时间戳在 `cet4-progress-meta` 和 `cet4-favorites-meta`。登录会话在 `cet4-session`。
+- 云端地址和 anon key 在根目录 `cloud-config.js`。
 - 发音口音保存在 `cet4-accent`，点击即读开关保存在 `cet4-auto-speak`，全局展开例句开关保存在 `cet4-detail`。
 - 音频接口地址在 `app.js` 顶部的 `audioBase` 常量处，默认使用有道词典的公开音频接口（该接口也支持整句朗读）。
 

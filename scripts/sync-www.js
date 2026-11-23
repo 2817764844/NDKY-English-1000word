@@ -3,7 +3,17 @@ const path = require("path");
 
 const root = path.resolve(__dirname, "..");
 const www = path.join(root, "www");
-const files = ["index.html", "styles.css", "app.js", "words.js", "update-check.js", "update.js"];
+const files = [
+  "index.html",
+  "styles.css",
+  "app.js",
+  "words.js",
+  "cloud-config.js",
+  "account-sync.js",
+  "account.js",
+  "update-check.js",
+  "update.js",
+];
 
 fs.mkdirSync(www, { recursive: true });
 for (const name of files) {
