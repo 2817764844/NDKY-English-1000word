@@ -1150,6 +1150,7 @@
     randomMeaningRevealed = false;
     elements.randomModal.hidden = true;
     syncModalScrollLock();
+    setAppNav("list");
   }
 
   function openRandomWord() {
@@ -1207,6 +1208,7 @@
     renderRandomWord();
     elements.randomModal.hidden = false;
     syncModalScrollLock();
+    setAppNav("random");
   }
 
   function syncModalScrollLock() {
@@ -2295,6 +2297,7 @@
     } else {
       elements.battleStart.focus();
     }
+    setAppNav("battle");
   }
 
   function closeBattle() {
@@ -2306,6 +2309,7 @@
     battleState.phase = "setup";
     elements.battleModal.hidden = true;
     syncModalScrollLock();
+    setAppNav("list");
     elements.battleButton.focus();
   }
 
@@ -2850,7 +2854,7 @@
   }
 
   function setSpellingBackgroundInert(inert) {
-    document.querySelectorAll(".app-header, .app-shell, .study-controls").forEach((node) => {
+    document.querySelectorAll(".app-header, .app-shell, .study-controls, .bottom-nav").forEach((node) => {
       if (inert) {
         node.setAttribute("inert", "");
       } else {
@@ -3206,6 +3210,7 @@
     setSpellingBackgroundInert(true);
     syncModalScrollLock();
     focusSpellingSetup();
+    setAppNav("spelling");
   }
 
   function closeSpelling() {
@@ -3217,6 +3222,7 @@
     if (elements.spellingButton) {
       elements.spellingButton.focus();
     }
+    setAppNav("list");
   }
 
   function render() {
@@ -3482,6 +3488,82 @@
   function resetFilters() {
     resetFilterState();
     render();
+  }
+
+  function setAppNav(name) {
+    document.querySelectorAll("[data-app-nav]").forEach((item) => {
+      const active = item.dataset.appNav === name;
+      item.classList.toggle("is-active", active);
+      if (active) {
+        item.setAttribute("aria-current", "page");
+      } else {
+        item.removeAttribute("aria-current");
+      }
+    });
+  }
+
+  function showWordListFromNav() {
+    if (!elements.randomModal.hidden) {
+      closeRandomWord();
+    }
+    if (!elements.battleModal.hidden) {
+      closeBattle();
+    }
+    if (elements.spellingModal && !elements.spellingModal.hidden) {
+      closeSpelling();
+    }
+    setAppNav("list");
+    const panel = document.querySelector(".word-panel");
+    if (panel) {
+      panel.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+  }
+
+  const bottomNav = document.querySelector("#bottomNav");
+  if (bottomNav) {
+    bottomNav.addEventListener("click", (event) => {
+      const item = event.target.closest("[data-app-nav]");
+      if (!item) {
+        return;
+      }
+      const name = item.dataset.appNav;
+      if (name === "list") {
+        showWordListFromNav();
+        return;
+      }
+      if (name === "random") {
+        if (!elements.randomModal.hidden) {
+          setAppNav("random");
+          return;
+        }
+        if (!elements.battleModal.hidden) {
+          closeBattle();
+        }
+        if (elements.spellingModal && !elements.spellingModal.hidden) {
+          closeSpelling();
+        }
+        openRandomWord();
+        return;
+      }
+      if (name === "spelling") {
+        if (elements.spellingModal && !elements.spellingModal.hidden) {
+          setAppNav("spelling");
+          return;
+        }
+        openSpelling();
+        return;
+      }
+      if (name === "battle") {
+        if (!elements.battleModal.hidden) {
+          setAppNav("battle");
+          return;
+        }
+        if (elements.spellingModal && !elements.spellingModal.hidden) {
+          closeSpelling();
+        }
+        openBattle();
+      }
+    });
   }
 
   elements.resetFilters.addEventListener("click", resetFilters);

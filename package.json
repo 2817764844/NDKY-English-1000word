@@ -1,0 +1,15 @@
+{
+  "name": "cet4-words",
+  "private": true,
+  "description": "大学英语四级核心词汇静态网页，以及可旁加载的 Capacitor 安卓包装。",
+  "scripts": {
+    "sync:www": "node scripts/sync-www.js",
+    "cap:sync": "npm run sync:www && cap sync android",
+    "apk:debug": "npm run cap:sync && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/cli": "^7.4.3",
+    "@capacitor/core": "^7.4.3"
+  }
+}
