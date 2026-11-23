@@ -2,14 +2,16 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#F6F7F9" />
+    <meta name="apple-mobile-web-app-title" content="四级核心词" />
     <meta
       name="description"
       content="大学英语四级核心词汇的网页浏览版，支持分 List 浏览、搜索、词性筛选、随机单词、拼写测试、问答对战（含联机）、释义遮蔽和真人发音朗读。"
     />
     <title>大学英语四级核心词汇</title>
     <!-- 资源版本号用于绕过 GitHub Pages 约 10 分钟的浏览器缓存；修改 styles.css/app.js/words.js 后请同步更新。 -->
-    <link rel="stylesheet" href="./styles.css?v=20261117-1" />
+    <link rel="stylesheet" href="./styles.css?v=20261123-1" />
   </head>
   <body>
     <header class="app-header">
@@ -192,36 +194,6 @@
           </div>
         </section>
 
-        <section class="word-panel" aria-label="单词列表">
-          <div class="word-list-head" aria-hidden="true">
-            <span>序号</span>
-            <span>单词</span>
-            <span>音标</span>
-            <span>词性</span>
-            <span>释义</span>
-            <span class="audio-head">朗读</span>
-            <span class="progress-head">进度</span>
-            <span></span>
-          </div>
-          <ol class="word-list" id="wordList"></ol>
-          <div class="empty-state" id="emptyState" hidden>
-            <div class="empty-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.3-4.3"></path>
-              </svg>
-            </div>
-            <h3>没有找到匹配的词汇</h3>
-            <p>可以尝试更短的关键词，或清除词性、收藏和进度筛选。</p>
-            <button class="primary-button" id="emptyReset" type="button">清除筛选</button>
-          </div>
-          <div class="load-more-wrap" id="loadMoreWrap" hidden>
-            <button class="load-more" id="loadMore" type="button">显示更多词汇</button>
-          </div>
-        </section>
-      </main>
-    </div>
-
     <div class="study-controls" aria-label="练习模式">
       <div class="controls-row">
         <span class="controls-label">练习模式</span>
@@ -331,6 +303,36 @@
           <span>全部收起</span>
         </button>
       </div>
+    </div>
+
+        <section class="word-panel" aria-label="单词列表">
+          <div class="word-list-head" aria-hidden="true">
+            <span>序号</span>
+            <span>单词</span>
+            <span>音标</span>
+            <span>词性</span>
+            <span>释义</span>
+            <span class="audio-head">朗读</span>
+            <span class="progress-head">进度</span>
+            <span></span>
+          </div>
+          <ol class="word-list" id="wordList"></ol>
+          <div class="empty-state" id="emptyState" hidden>
+            <div class="empty-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.3-4.3"></path>
+              </svg>
+            </div>
+            <h3>没有找到匹配的词汇</h3>
+            <p>可以尝试更短的关键词，或清除词性、收藏和进度筛选。</p>
+            <button class="primary-button" id="emptyReset" type="button">清除筛选</button>
+          </div>
+          <div class="load-more-wrap" id="loadMoreWrap" hidden>
+            <button class="load-more" id="loadMore" type="button">显示更多词汇</button>
+          </div>
+        </section>
+      </main>
     </div>
 
     <div
@@ -856,6 +858,44 @@
       </section>
     </div>
 
+
+    <nav class="bottom-nav" id="bottomNav" aria-label="主要功能">
+      <button class="bottom-nav-item is-active" type="button" data-app-nav="list" aria-current="page">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M4 6h16" />
+          <path d="M4 12h16" />
+          <path d="M4 18h10" />
+        </svg>
+        <span>词表</span>
+      </button>
+      <button class="bottom-nav-item" type="button" data-app-nav="random">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="m18 14 4 4-4 4" />
+          <path d="m18 2 4 4-4 4" />
+          <path d="M2 18h1.97a4 4 0 0 0 3.3-1.7l5.46-8.6a4 4 0 0 1 3.3-1.7H22" />
+          <path d="M2 6h1.97a4 4 0 0 1 3.6 2.2" />
+          <path d="M22 18h-6.04a4 4 0 0 1-3.3-1.8l-.36-.45" />
+        </svg>
+        <span>随机</span>
+      </button>
+      <button class="bottom-nav-item" type="button" data-app-nav="spelling">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </svg>
+        <span>拼写</span>
+      </button>
+      <button class="bottom-nav-item" type="button" data-app-nav="battle">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M14.5 17.5 3 6V3h3l11.5 11.5" />
+          <path d="m13 19 6-6" />
+          <path d="m16 16 4 4" />
+          <path d="m19 21 2-2" />
+        </svg>
+        <span>对战</span>
+      </button>
+    </nav>
+
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
     <noscript>
@@ -863,6 +903,6 @@
     </noscript>
 
     <script src="./words.js?v=20261105-1"></script>
-    <script src="./app.js?v=20261117-1"></script>
+    <script src="./app.js?v=20261123-1"></script>
   </body>
 </html>

@@ -1,0 +1,13 @@
+{
+  "appId": "com.lostlisa.cet4words",
+  "appName": "四级核心词",
+  "webDir": "www",
+  "backgroundColor": "#F6F7F9",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#F6F7F9"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

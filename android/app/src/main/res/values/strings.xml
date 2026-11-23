@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">四级核心词</string>
+    <string name="title_activity_main">四级核心词</string>
+    <string name="package_name">com.lostlisa.cet4words</string>
+    <string name="custom_url_scheme">com.lostlisa.cet4words</string>
+</resources>
