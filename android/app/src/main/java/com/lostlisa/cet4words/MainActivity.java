@@ -31,6 +31,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(Cet4UpdatePlugin.class);
         super.onCreate(savedInstanceState);
         Window window = getWindow();
         WindowCompat.setDecorFitsSystemWindows(window, false);

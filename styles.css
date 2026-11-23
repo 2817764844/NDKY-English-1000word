@@ -3823,6 +3823,114 @@ svg {
   }
 }
 
+.update-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: end center;
+  padding:
+    max(16px, var(--safe-top))
+    max(16px, var(--safe-right))
+    max(16px, var(--safe-bottom))
+    max(16px, var(--safe-left));
+}
+
+.update-modal[hidden] {
+  display: none;
+}
+
+.update-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(22, 28, 48, 0.46);
+}
+
+.update-card {
+  position: relative;
+  z-index: 1;
+  width: min(440px, 100%);
+  margin-bottom: 8px;
+  padding: 22px 20px 18px;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(22, 28, 48, 0.18);
+}
+
+.update-kicker {
+  margin: 0 0 4px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.update-card h2 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.update-copy,
+.update-status {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.update-progress {
+  height: 6px;
+  margin-top: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+
+.update-progress span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.update-status {
+  margin-top: 10px;
+}
+
+.update-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.update-later,
+.update-go {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.update-later {
+  border: 1px solid var(--border-strong);
+  color: var(--ink);
+  background: #ffffff;
+}
+
+.update-go {
+  border: 0;
+  color: #ffffff;
+  background: var(--accent);
+}
+
+.update-go:disabled {
+  opacity: 0.55;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
