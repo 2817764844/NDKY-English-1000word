@@ -5,6 +5,8 @@
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
+  --practice-dock-h: 64px;
+  --bottom-nav-h: 0px;
   --bg: #F6F7F9;
   --surface: #ffffff;
   --surface-soft: #F3F5F8;
@@ -66,7 +68,7 @@ html.native-safe-area {
 body {
   min-height: 100vh;
   margin: 0;
-  padding-bottom: 32px;
+  padding-bottom: calc(var(--practice-dock-h) + var(--bottom-nav-h) + var(--safe-bottom) + 20px);
   color: var(--ink);
   background: var(--bg);
   font-family:
@@ -1571,6 +1573,33 @@ svg {
   gap: 8px;
 }
 
+.practice-dock {
+  position: fixed;
+  z-index: 44;
+  left: 50%;
+  right: auto;
+  bottom: calc(var(--bottom-nav-h) + var(--safe-bottom) + 12px);
+  flex: none;
+  justify-content: center;
+  width: min(460px, calc(100% - 32px - var(--safe-left) - var(--safe-right)));
+  min-height: var(--practice-dock-h);
+  margin: 0;
+  padding: 8px;
+  transform: translateX(-50%);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 28px rgba(28, 36, 56, 0.12);
+  backdrop-filter: blur(16px);
+}
+
+.practice-dock .study-toggle {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  height: 44px;
+}
+
 .controls-label {
   color: var(--muted);
   font-size: 11.5px;
@@ -1622,7 +1651,7 @@ svg {
 .toast {
   position: fixed;
   right: 24px;
-  bottom: 96px;
+  bottom: calc(var(--practice-dock-h) + var(--bottom-nav-h) + var(--safe-bottom) + 24px);
   z-index: 200;
   max-width: min(420px, calc(100vw - 48px));
   padding: 11px 14px;
@@ -3427,7 +3456,7 @@ svg {
 
   .toast {
     right: 12px;
-    bottom: calc(78px + var(--safe-bottom));
+    bottom: calc(var(--practice-dock-h) + var(--bottom-nav-h) + var(--safe-bottom) + 12px);
     left: 12px;
     max-width: none;
   }
@@ -3478,8 +3507,31 @@ svg {
     display: none;
   }
 
+  :root {
+    --bottom-nav-h: 68px;
+  }
+
+  .practice-dock {
+    left: var(--safe-left);
+    right: var(--safe-right);
+    bottom: calc(var(--bottom-nav-h) + var(--safe-bottom));
+    width: auto;
+    height: var(--practice-dock-h);
+    padding: 8px 10px;
+    transform: none;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 20px rgba(28, 36, 56, 0.06);
+  }
+
+  .practice-dock .controls-label {
+    display: none;
+  }
+
   body {
-    padding-bottom: calc(84px + var(--safe-bottom));
+    padding-bottom: calc(var(--practice-dock-h) + var(--bottom-nav-h) + var(--safe-bottom) + 12px);
   }
 }
 
@@ -3785,10 +3837,12 @@ svg {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
+    align-items: center;
     left: var(--safe-left);
     right: var(--safe-right);
     bottom: var(--safe-bottom);
-    padding: 6px 10px 8px;
+    height: var(--bottom-nav-h);
+    padding: 6px 10px;
     border-top: 1px solid var(--border);
     background: rgba(255, 255, 255, 0.96);
     box-shadow: 0 -8px 24px rgba(28, 36, 56, 0.06);
