@@ -109,6 +109,8 @@
 
 网页本身仍是仓库根目录的静态文件，GitHub Pages 直接发布根目录，不需要构建。安卓包用 [Capacitor](https://capacitorjs.com/) 把同一套页面装进 WebView，方便旁加载安装。应用名是「四级核心词」，包名 `com.lostlisa.cet4words`，最低 Android 8.0（API 24），默认竖屏。收藏和学习进度走 WebView 的 `localStorage`，和浏览器里的数据不互通。
 
+当前调试包版本是 **1.1**（`versionCode` 2）。1.0 在全面屏上会让状态栏和挖孔盖住页头。1.1 起，应用按系统上报的状态栏、挖孔、底部导航（手势条或三键）和键盘高度给 WebView 留边，不写死某一款手机的像素。网页端继续用 CSS `env(safe-area-inset-*)`；进到安卓应用后页面会带上 `native-safe-area`，这段 CSS 安全区改为 0，避免和原生边距叠成两层空白。设置里看到的版本号是 1.1 就是新包。请直接覆盖安装，不要卸载，否则本机收藏和学习进度会丢。
+
 重新打包需要 Node.js 18+、JDK 17+，以及 Android SDK（platform 35、build-tools 35.0.0）。
 
 ```bash
