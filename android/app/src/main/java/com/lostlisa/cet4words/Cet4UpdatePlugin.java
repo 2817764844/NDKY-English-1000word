@@ -20,7 +20,7 @@ import java.util.Locale;
 
 /**
  * 侧载更新只存在于安卓壳里：拉取 GitHub Releases、下载约定命名的 APK，再交给系统安装器。
- * 检查失败时向页面返回 ok:false，由页面静默忽略。
+ * 检查失败时向页面返回 ok:false。启动后的自动检查会静默忽略；「我的」里的手动检查会告诉用户。
  */
 @CapacitorPlugin(name = "Cet4Update")
 public class Cet4UpdatePlugin extends Plugin {

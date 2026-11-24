@@ -11,7 +11,7 @@
     />
     <title>大学英语四级核心词汇</title>
     <!-- 资源版本号用于绕过 GitHub Pages 约 10 分钟的浏览器缓存；修改 styles.css/app.js/words.js 后请同步更新。 -->
-    <link rel="stylesheet" href="./styles.css?v=20261124-2" />
+    <link rel="stylesheet" href="./styles.css?v=20261124-3" />
   </head>
   <body>
     <header class="app-header">
@@ -928,6 +928,18 @@
         </div>
         <p class="account-sync is-warn" id="accountSync" role="status">正在读取本机记录…</p>
 
+        <section class="account-update" aria-labelledby="appVersionHeading">
+          <div class="account-update-row">
+            <div>
+              <p class="account-update-label" id="appVersionHeading">应用版本</p>
+              <p class="account-version" id="appVersionLabel">网页版</p>
+            </div>
+            <button class="account-check-update" id="checkUpdateButton" type="button">检查更新</button>
+          </div>
+          <p class="account-update-hint" id="appVersionHint">这是页面版本，不是安卓安装包。浏览器不能旁加载安装。</p>
+          <p class="account-update-result" id="appUpdateResult" role="status" hidden></p>
+        </section>
+
         <section id="accountGuest">
           <div class="account-tabs" role="tablist" aria-label="登录或注册">
             <button type="button" data-account-mode="login" aria-pressed="true">登录</button>
@@ -996,7 +1008,7 @@
     <script src="./account-sync.js?v=20261123-5"></script>
     <script src="./app.js?v=20261124-2"></script>
     <script src="./account.js?v=20261123-5"></script>
-    <script src="./update-check.js?v=20261123-3"></script>
-    <script src="./update.js?v=20261123-3"></script>
+    <script src="./update-check.js?v=20261124-3"></script>
+    <script src="./update.js?v=20261124-3"></script>
   </body>
 </html>

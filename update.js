@@ -1,4 +1,5 @@
-/* 只在安卓壳里检查 GitHub Releases。网页和桌面浏览器直接返回。检查失败不提示。 */
+/* 启动后的自动检查只在安卓壳里跑，失败不打断学习。
+   「我的」里的手动检查会说明结果。网页不下载、也不安装 APK。 */
 (function () {
   const dismissedKey = "cet4-update-dismissed";
   let plugin = null;
@@ -282,16 +283,199 @@
       }
       showPrompt(update, current);
     } catch {
-      // 网络、解析或插件异常都不打断背词。
+      // 自动检查失败不提示，避免打断背词。手动检查走 checkManually。
     }
+  }
+
+  function versionNodes() {
+    return {
+      label: document.querySelector("#appVersionLabel"),
+      hint: document.querySelector("#appVersionHint"),
+      result: document.querySelector("#appUpdateResult"),
+      button: document.querySelector("#checkUpdateButton"),
+    };
+  }
+
+  function showManualResult(status, message) {
+    const { result } = versionNodes();
+    if (!result) {
+      return;
+    }
+    result.hidden = !message;
+    result.className = `account-update-result is-${status || "idle"}`;
+    result.textContent = message || "";
+  }
+
+  function showWebVersion() {
+    const { label, hint } = versionNodes();
+    const pageVersion =
+      window.Cet4UpdateCheck && window.Cet4UpdateCheck.PAGE_VERSION_NAME
+        ? window.Cet4UpdateCheck.PAGE_VERSION_NAME
+        : "";
+    if (label) {
+      label.textContent = pageVersion ? `网页 ${pageVersion}` : "网页版";
+    }
+    if (hint) {
+      hint.textContent = "这是页面版本，不是安卓安装包。浏览器不能旁加载安装。";
+    }
+  }
+
+  async function refreshVersionLabel() {
+    const { label, hint } = versionNodes();
+    if (!label || !hint) {
+      return;
+    }
+    if (!isAndroidApp() || !window.Cet4UpdateCheck) {
+      showWebVersion();
+      return;
+    }
+    const native = getPlugin();
+    if (!native || typeof native.getVersion !== "function") {
+      if (!label.dataset.nativeVersion) {
+        label.textContent = "正在读取版本…";
+        hint.textContent = "正在读取安装包版本号。";
+      }
+      return;
+    }
+    if (!label.dataset.nativeVersion) {
+      label.textContent = "正在读取版本…";
+      hint.textContent = "正在读取安装包版本号。";
+    }
+    try {
+      const current = await native.getVersion();
+      const text = window.Cet4UpdateCheck.formatVersion(current);
+      if (!text) {
+        delete label.dataset.nativeVersion;
+        label.textContent = "未能读取版本";
+        hint.textContent = "可以点「检查更新」再试一次。";
+        return;
+      }
+      label.dataset.nativeVersion = "1";
+      label.textContent = text;
+      hint.textContent = "和 GitHub 正式发布的安装包比较。";
+    } catch {
+      delete label.dataset.nativeVersion;
+      label.textContent = "未能读取版本";
+      hint.textContent = "可以点「检查更新」再试一次。";
+    }
+  }
+
+  async function checkManually() {
+    if (!isAndroidApp() || !window.Cet4UpdateCheck) {
+      return window.Cet4UpdateCheck
+        ? window.Cet4UpdateCheck.describeManualCheck({ platform: "web" })
+        : { status: "web", message: "这是网页版。刷新页面即可使用最新内容。浏览器不能安装安卓包。" };
+    }
+    const native = getPlugin();
+    if (!native || typeof native.getVersion !== "function" || typeof native.fetchReleases !== "function") {
+      return window.Cet4UpdateCheck.describeManualCheck({
+        platform: "android",
+        current: null,
+        remoteOk: false,
+        releases: null,
+      });
+    }
+    let current = null;
+    try {
+      current = await native.getVersion();
+    } catch {
+      current = null;
+    }
+    let remote = null;
+    try {
+      remote = await native.fetchReleases();
+    } catch {
+      remote = null;
+    }
+    let releases = null;
+    let remoteOk = Boolean(remote && remote.ok && typeof remote.body === "string");
+    if (remoteOk) {
+      try {
+        releases = JSON.parse(remote.body);
+      } catch {
+        remoteOk = false;
+      }
+    }
+    const result = window.Cet4UpdateCheck.describeManualCheck({
+      platform: "android",
+      current,
+      remoteOk,
+      releases,
+    });
+    if (result.status === "available" && result.update) {
+      showPrompt(result.update, current);
+    }
+    return result;
+  }
+
+  let manualCheckRunning = false;
+
+  async function onManualCheck() {
+    if (manualCheckRunning) {
+      return;
+    }
+    const android = isAndroidApp();
+    const { button } = versionNodes();
+    manualCheckRunning = true;
+    if (button) {
+      button.disabled = true;
+    }
+    if (android) {
+      if (button) {
+        button.setAttribute("aria-busy", "true");
+        button.textContent = "正在检查…";
+      }
+      showManualResult("checking", "正在检查更新…");
+    }
+    try {
+      const result = await checkManually();
+      showManualResult(result.status, result.message);
+      if (android) {
+        refreshVersionLabel();
+      }
+    } catch {
+      showManualResult("failed", "检查更新失败。请检查网络后再试。");
+    } finally {
+      manualCheckRunning = false;
+      if (button) {
+        button.disabled = false;
+        button.removeAttribute("aria-busy");
+        button.textContent = "检查更新";
+      }
+    }
+  }
+
+  function bindManualCheck() {
+    const { button } = versionNodes();
+    if (button && button.dataset.bound !== "1") {
+      button.dataset.bound = "1";
+      button.addEventListener("click", () => {
+        onManualCheck();
+      });
+    }
+    const modal = document.querySelector("#accountModal");
+    if (modal && modal.dataset.updateWatch !== "1") {
+      modal.dataset.updateWatch = "1";
+      const observer = new MutationObserver(() => {
+        if (!modal.hidden) {
+          refreshVersionLabel();
+        }
+      });
+      observer.observe(modal, { attributes: true, attributeFilter: ["hidden"] });
+    }
+    refreshVersionLabel();
   }
 
   window.Cet4AppUpdate = {
     showPrompt,
     checkForUpdate,
+    checkManually,
+    refreshVersionLabel,
   };
 
+  bindManualCheck();
   window.addEventListener("load", () => {
+    bindManualCheck();
     window.setTimeout(checkForUpdate, 1200);
   });
 })();

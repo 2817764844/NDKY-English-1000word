@@ -1,5 +1,14 @@
 const assert = require("assert");
-const { parseAssetName, isReleaseDownloadUrl, selectUpdate } = require("../update-check.js");
+const fs = require("fs");
+const path = require("path");
+const {
+  PAGE_VERSION_NAME,
+  parseAssetName,
+  isReleaseDownloadUrl,
+  selectUpdate,
+  formatVersion,
+  describeManualCheck,
+} = require("../update-check.js");
 
 const current = { versionName: "1.2", versionCode: 3 };
 
@@ -55,5 +64,77 @@ assert.strictEqual(
 assert.strictEqual(selectUpdate({ message: "rate limit" }, current), null);
 assert.strictEqual(selectUpdate([], current), null);
 assert.strictEqual(selectUpdate([release("cet4-words-1.3-4.apk")], null), null);
+
+const gradle = fs.readFileSync(path.join(__dirname, "../android/app/build.gradle"), "utf8");
+const gradleName = gradle.match(/versionName "([^"]+)"/)[1];
+const gradleCode = Number(gradle.match(/versionCode (\d+)/)[1]);
+assert.strictEqual(gradleName, "1.6");
+assert.strictEqual(gradleCode, 7);
+assert.strictEqual(PAGE_VERSION_NAME, gradleName);
+assert.strictEqual(formatVersion({ versionName: "1.6", versionCode: 7 }), "1.6（7）");
+assert.strictEqual(formatVersion({ ok: false, versionName: "1.6", versionCode: 7 }), "");
+assert.strictEqual(formatVersion({ versionName: "1.6" }), "");
+
+const installed = { versionName: "1.6", versionCode: 7 };
+const newer = describeManualCheck({
+  platform: "android",
+  current: installed,
+  remoteOk: true,
+  releases: [release("cet4-words-1.7-8.apk")],
+});
+assert.strictEqual(newer.status, "available");
+assert.strictEqual(newer.update.versionCode, 8);
+assert.strictEqual(newer.message, "发现新版本 1.7（8）。");
+
+const same = describeManualCheck({
+  platform: "android",
+  current: installed,
+  remoteOk: true,
+  releases: [release("cet4-words-1.6-7.apk"), release("cet4-words-1.5-6.apk", { draft: true })],
+});
+assert.strictEqual(same.status, "latest");
+assert.strictEqual(same.message, "已经是最新版本 1.6（7）。");
+
+const ignoredDraft = describeManualCheck({
+  platform: "android",
+  current: installed,
+  remoteOk: true,
+  releases: [release("cet4-words-1.7-8.apk", { prerelease: true })],
+});
+assert.strictEqual(ignoredDraft.status, "latest");
+
+assert.strictEqual(
+  describeManualCheck({
+    platform: "android",
+    current: installed,
+    remoteOk: false,
+    releases: null,
+  }).status,
+  "failed",
+);
+assert.strictEqual(
+  describeManualCheck({
+    platform: "android",
+    current: installed,
+    remoteOk: true,
+    releases: { message: "rate limit" },
+  }).message,
+  "检查更新失败。请检查网络后再试。",
+);
+assert.strictEqual(
+  describeManualCheck({
+    platform: "android",
+    current: { ok: false },
+    remoteOk: true,
+    releases: [],
+  }).message,
+  "检查更新失败，没有读到当前安装版本。",
+);
+
+const web = describeManualCheck({ platform: "web" });
+assert.strictEqual(web.status, "web");
+assert.match(web.message, /网页版/);
+assert.match(web.message, /不能安装安卓包/);
+assert.strictEqual(web.update, undefined);
 
 console.log("update-check ok");
