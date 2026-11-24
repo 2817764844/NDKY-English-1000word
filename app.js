@@ -218,12 +218,6 @@
     randomWordMeaningText: document.querySelector("#randomWordMeaningText"),
     randomWordMeaningNote: document.querySelector("#randomWordMeaningNote"),
     randomFavoriteButton: document.querySelector("#randomFavoriteButton"),
-    randomForgotButton: document.querySelector("#randomForgotButton"),
-    randomForgotLabel: document.querySelector("#randomForgotLabel"),
-    randomNextButton: document.querySelector("#randomNextButton"),
-    randomProgressButton: document.querySelector("#randomProgressButton"),
-    randomProgressLabel: document.querySelector("#randomProgressLabel"),
-    randomNextLabel: document.querySelector("#randomNextLabel"),
     battleButton: document.querySelector("#battleButton"),
     battleModal: document.querySelector("#battleModal"),
     battleSetup: document.querySelector("#battleSetup"),
@@ -966,11 +960,13 @@
   function updateHeading(filteredCount, battleCount = filteredCount) {
     if (state.selectedList === "all") {
       elements.viewEyebrow.textContent = "全部词汇";
-      elements.viewTitle.textContent = "大学英语四级核心词汇";
+      elements.viewTitle.textContent = "";
+      elements.viewTitle.hidden = true;
     } else {
       const summary = listSummaries[Number(state.selectedList) - 1];
       elements.viewEyebrow.textContent = `List ${summary.number}`;
       elements.viewTitle.textContent = `第 ${summary.start}-${summary.end} 词`;
+      elements.viewTitle.hidden = false;
     }
 
     const filters = [];
@@ -1057,55 +1053,30 @@
     return progress ? ` · 本轮 ${progress}` : "";
   }
 
-  // 当前筛选范围内、已经留到下一轮的词。
-  function pendingForgottenWords() {
-    return getFilteredWords().filter((word) => forgottenWords.has(word.id));
-  }
-
-  function toggleForgottenWord() {
-    if (!activeRandomWord) {
+  // 「记住」标已掌握，「遗忘」标模糊并留到下一轮。两者都会立刻抽下一个。
+  // 只打开或关闭弹窗不会走到这里，因此不选直接关掉不会写进度。
+  function markRandomWord(status) {
+    const current = activeRandomWord;
+    if (!current || (status !== "mastered" && status !== "fuzzy")) {
       return;
     }
-    if (forgottenWords.has(activeRandomWord.id)) {
-      forgottenWords.delete(activeRandomWord.id);
-      showToast("已移出下一轮");
+    if (status === "fuzzy") {
+      forgottenWords.add(current.id);
     } else {
-      forgottenWords.add(activeRandomWord.id);
-      setProgress(activeRandomWord.id, "fuzzy");
-      showToast("已标为模糊，并留到下一轮");
+      forgottenWords.delete(current.id);
     }
-    render();
-    renderRandomWord();
-  }
-
-  // 「再抽一个」默认把当前词标为已掌握。本次抽取里已经点过「遗忘」的词保持原进度。
-  // 只打开或关闭弹窗不会走到这里。
-  function drawNextRandomWord() {
-    const current = activeRandomWord;
-    const markedForgotten = Boolean(current && forgottenWords.has(current.id));
-    let progressChanged = false;
-    if (current && !markedForgotten && getProgress(current.id) !== "mastered") {
-      setProgress(current.id, "mastered");
-      progressChanged = true;
-    }
+    const progressChanged = getProgress(current.id) !== status;
+    setProgress(current.id, status);
     // 标进度会改变「按进度筛选」后的候选集。这一轮洗牌还在进行，不能当成切换了词汇范围。
-    if (current) {
-      randomBagScope = getFilteredWords().map((word) => word.id).join(",");
-    }
-    openRandomWord();
+    randomBagScope = getFilteredWords().map((word) => word.id).join(",");
+    const opened = drawRandomCard();
     if (progressChanged) {
       render();
     }
-  }
-
-  function cycleRandomWordProgress() {
-    if (!activeRandomWord) {
-      return;
+    if (!opened) {
+      showToast("当前筛选下没有可抽取的单词。");
+      closeRandomWord();
     }
-    const next = cycleProgress(activeRandomWord.id);
-    showToast(`进度：${progressLabels[next]}`);
-    render();
-    renderRandomWord();
   }
 
   function renderRandomWord() {
@@ -1129,36 +1100,10 @@
     updateRandomMeaningState();
     elements.randomFavoriteButton.setAttribute("aria-pressed", isFavorite ? "true" : "false");
     elements.randomFavoriteButton.title = isFavorite ? "取消收藏" : "收藏";
-
-    const progress = progressButtonAttrs(word.id);
-    if (elements.randomProgressButton) {
-      elements.randomProgressButton.dataset.progress = progress.status;
-      elements.randomProgressButton.title = progress.title;
-      elements.randomProgressLabel.textContent = progress.label;
-    }
-
-    const isForgotten = forgottenWords.has(word.id);
-    elements.randomForgotButton.setAttribute(
-      "aria-pressed",
-      isForgotten ? "true" : "false",
+    elements.randomFavoriteButton.setAttribute(
+      "aria-label",
+      isFavorite ? "取消收藏" : "收藏",
     );
-    elements.randomForgotLabel.textContent = isForgotten ? "已留" : "遗忘";
-    elements.randomForgotButton.title = isForgotten
-      ? "取消留到下一轮"
-      : "没记住，标为模糊并留到下一轮再抽";
-    if (elements.randomNextButton) {
-      elements.randomNextButton.title = isForgotten
-        ? "已点遗忘，保持模糊并抽取下一个"
-        : "默认标为已掌握，再抽取下一个";
-    }
-
-    if (randomBag.length === 0) {
-      const pendingCount = pendingForgottenWords().length;
-      elements.randomNextLabel.textContent =
-        pendingCount > 0 ? `下一轮 ${pendingCount}` : "重新洗牌";
-    } else {
-      elements.randomNextLabel.textContent = "再抽一个";
-    }
   }
 
   function closeRandomWord() {
@@ -1170,10 +1115,15 @@
   }
 
   function openRandomWord() {
+    if (!drawRandomCard()) {
+      showToast("当前筛选下没有可抽取的单词。");
+    }
+  }
+
+  function drawRandomCard() {
     const filteredWords = getFilteredWords();
     if (!filteredWords.length) {
-      showToast("当前筛选下没有可抽取的单词。");
-      return;
+      return false;
     }
 
     // 候选集合变化（切换 List、搜索、词性、收藏或进度筛选）时重新开一轮。
@@ -1225,6 +1175,7 @@
     elements.randomModal.hidden = false;
     syncModalScrollLock();
     setAppNav("random");
+    return true;
   }
 
   function syncModalScrollLock() {
@@ -3742,12 +3693,10 @@
       updateRandomMeaningState();
     } else if (action === "speak" && activeRandomWord) {
       playWord(activeRandomWord.word, state.accent);
+    } else if (action === "remember") {
+      markRandomWord("mastered");
     } else if (action === "forget") {
-      toggleForgottenWord();
-    } else if (action === "next") {
-      drawNextRandomWord();
-    } else if (action === "progress") {
-      cycleRandomWordProgress();
+      markRandomWord("fuzzy");
     } else if (action === "favorite" && activeRandomWord) {
       if (favorites.has(activeRandomWord.id)) {
         favorites.delete(activeRandomWord.id);
