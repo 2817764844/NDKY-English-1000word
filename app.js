@@ -286,6 +286,7 @@
     battleBack: document.querySelector("#battleBack"),
     spellingButton: document.querySelector("#spellingButton"),
     spellingModal: document.querySelector("#spellingModal"),
+    accountModal: document.querySelector("#accountModal"),
     spellingSetup: document.querySelector("#spellingSetup"),
     spellingPlay: document.querySelector("#spellingPlay"),
     spellingResult: document.querySelector("#spellingResult"),
@@ -343,6 +344,19 @@
     }
   }
 
+  let applyingRemoteStudy = false;
+
+  function notifyStudy(kind) {
+    if (applyingRemoteStudy) {
+      return;
+    }
+    try {
+      window.dispatchEvent(new CustomEvent("cet4-study", { detail: { kind } }));
+    } catch {
+      // 统计打卡是附加能力，不影响背词。
+    }
+  }
+
   function loadAccent() {
     return readStorage(accentStorageKey) === "uk" ? "uk" : "us";
   }
@@ -366,6 +380,7 @@
 
   function saveFavorites() {
     writeStorage(favoriteStorageKey, JSON.stringify([...favorites]));
+    notifyStudy("favorite");
   }
 
   function loadProgress() {
@@ -394,6 +409,7 @@
       }
     });
     writeStorage(progressStorageKey, JSON.stringify(payload));
+    notifyStudy("progress");
   }
 
   function getProgress(wordId) {
@@ -1213,9 +1229,10 @@
 
   function syncModalScrollLock() {
     const spellingOpen = Boolean(elements.spellingModal && !elements.spellingModal.hidden);
+    const accountOpen = Boolean(elements.accountModal && !elements.accountModal.hidden);
     document.body.classList.toggle(
       "modal-open",
-      !elements.randomModal.hidden || !elements.battleModal.hidden || spellingOpen,
+      !elements.randomModal.hidden || !elements.battleModal.hidden || spellingOpen || accountOpen,
     );
   }
 
@@ -2011,6 +2028,7 @@
       return;
     }
     onlineState.localAnswered = true;
+    notifyStudy("battle");
     battleState.answers[0] = option ? option.text : null;
     elements.battleOptions.querySelectorAll("button").forEach((button) => {
       button.disabled = true;
@@ -2514,6 +2532,7 @@
       submitOnlineAnswer(optionIndex);
       return;
     }
+    notifyStudy("battle");
     const option = optionIndex === null ? null : question.options[optionIndex];
     const answerText = option ? option.text : null;
 
@@ -3079,6 +3098,7 @@
       return;
     }
     const correct = !skipped && normalized === normalizeSpelling(word.word);
+    notifyStudy("spelling");
     spellingState.phase = "feedback";
     spellingState.lastCorrect = correct;
     spellingState.lastSkipped = Boolean(skipped);
@@ -3562,8 +3582,28 @@
           closeSpelling();
         }
         openBattle();
+        return;
+      }
+      if (name === "account") {
+        openAccountPanel();
       }
     });
+  }
+
+  function openAccountPanel() {
+    if (!elements.randomModal.hidden) {
+      closeRandomWord();
+    }
+    if (!elements.battleModal.hidden) {
+      closeBattle();
+    }
+    if (elements.spellingModal && !elements.spellingModal.hidden) {
+      closeSpelling();
+    }
+    if (window.CET4_ACCOUNT && typeof window.CET4_ACCOUNT.open === "function") {
+      window.CET4_ACCOUNT.open();
+    }
+    setAppNav("account");
   }
 
   elements.resetFilters.addEventListener("click", resetFilters);
@@ -3794,4 +3834,45 @@
   createListNav();
   createPartOptions();
   render();
+
+  window.CET4_APP = {
+    snapshot() {
+      const progress = {};
+      progressMap.forEach((value, id) => {
+        if (value === "fuzzy" || value === "mastered") {
+          progress[id] = value;
+        }
+      });
+      return {
+        progress,
+        favorites: [...favorites],
+        wordCount: words.length,
+      };
+    },
+    replaceStudyData(progressObject, favoriteIds) {
+      applyingRemoteStudy = true;
+      try {
+        progressMap.clear();
+        Object.entries(progressObject || {}).forEach(([id, value]) => {
+          if (value === "fuzzy" || value === "mastered") {
+            progressMap.set(String(id), value);
+          }
+        });
+        favorites.clear();
+        (favoriteIds || []).forEach((id) => {
+          favorites.add(String(id));
+        });
+        saveProgress();
+        saveFavorites();
+      } finally {
+        applyingRemoteStudy = false;
+      }
+      render();
+      if (!elements.randomModal.hidden && activeRandomWord) {
+        renderRandomWord();
+      }
+    },
+    syncScrollLock: syncModalScrollLock,
+    openAccount: openAccountPanel,
+  };
 })();

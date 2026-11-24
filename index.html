@@ -11,7 +11,7 @@
     />
     <title>大学英语四级核心词汇</title>
     <!-- 资源版本号用于绕过 GitHub Pages 约 10 分钟的浏览器缓存；修改 styles.css/app.js/words.js 后请同步更新。 -->
-    <link rel="stylesheet" href="./styles.css?v=20261123-4" />
+    <link rel="stylesheet" href="./styles.css?v=20261123-5" />
   </head>
   <body>
     <header class="app-header">
@@ -32,15 +32,24 @@
             <h1 class="sr-only">大学英语四级核心词汇</h1>
           </div>
         </div>
-        <div class="header-summary" aria-label="词汇数据概况">
-          <div class="header-stat">
-            <strong id="summaryWordCount">456</strong>
-            <span>核心词</span>
+        <div class="header-actions">
+          <div class="header-summary" aria-label="词汇数据概况">
+            <div class="header-stat">
+              <strong id="summaryWordCount">456</strong>
+              <span>核心词</span>
+            </div>
+            <div class="header-stat">
+              <strong id="summaryListCount">7</strong>
+              <span>个 List</span>
+            </div>
           </div>
-          <div class="header-stat">
-            <strong id="summaryListCount">7</strong>
-            <span>个 List</span>
-          </div>
+          <button class="account-entry" id="accountButton" type="button" title="账号、同步和学习打卡">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M20 21a8 8 0 0 0-16 0" />
+              <circle cx="12" cy="8" r="4" />
+            </svg>
+            <span>我的</span>
+          </button>
         </div>
       </div>
     </header>
@@ -64,7 +73,7 @@
           <svg aria-hidden="true" viewBox="0 0 24 24">
             <path d="M12 3v18M3 12h18" />
           </svg>
-          <span>点击星标可收藏；点进度钮可标记生词 / 模糊 / 已掌握，数据只保存在本机浏览器中。</span>
+          <span>点击星标可收藏；点进度钮可标记生词 / 模糊 / 已掌握。不登录也能学，登录后可同步到云端。</span>
         </div>
       </aside>
 
@@ -894,7 +903,100 @@
         </svg>
         <span>对战</span>
       </button>
+      <button class="bottom-nav-item" type="button" data-app-nav="account">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M20 21a8 8 0 0 0-16 0" />
+          <circle cx="12" cy="8" r="4" />
+        </svg>
+        <span>我的</span>
+      </button>
     </nav>
+
+    <div
+      class="account-modal"
+      id="accountModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="accountTitle"
+      hidden
+    >
+      <div class="account-backdrop" data-account-action="close"></div>
+      <section class="account-card">
+        <div class="account-card-head">
+          <div>
+            <p class="account-kicker">账号与学习</p>
+            <h2 id="accountTitle">我的</h2>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-account-action="close"
+            aria-label="关闭"
+            title="关闭"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <p class="account-sync is-warn" id="accountSync" role="status">正在读取本机记录…</p>
+
+        <section id="accountGuest">
+          <div class="account-tabs" role="tablist" aria-label="登录或注册">
+            <button type="button" data-account-mode="login" aria-pressed="true">登录</button>
+            <button type="button" data-account-mode="register" aria-pressed="false">注册</button>
+          </div>
+          <form id="accountForm">
+            <label class="account-field">
+              <span>邮箱</span>
+              <input id="accountEmail" type="email" autocomplete="username" inputmode="email" placeholder="name@example.com" />
+            </label>
+            <label class="account-field">
+              <span>密码</span>
+              <input id="accountPassword" type="password" autocomplete="current-password" placeholder="至少 6 位" />
+            </label>
+            <p class="account-form-error" id="accountFormError" hidden></p>
+            <button class="primary-button account-submit" id="accountSubmit" type="submit">登录</button>
+          </form>
+          <button class="text-button account-forgot" id="accountForgot" type="button">忘记密码</button>
+          <p class="account-note">不登录也可以背词、抽词、拼写和对战。进度、收藏和打卡先记在这台设备上。</p>
+        </section>
+
+        <section id="accountUser" hidden>
+          <p class="account-signed-in">当前账号 <strong id="accountEmailLabel"></strong></p>
+          <button class="account-signout" id="accountSignOut" type="button">退出登录</button>
+          <p class="account-note">退出后本机进度还在。下次登录会再次和云端合并。</p>
+        </section>
+
+        <section id="accountReset" hidden>
+          <form id="accountResetForm">
+            <label class="account-field">
+              <span>新密码</span>
+              <input id="accountNewPassword" type="password" autocomplete="new-password" placeholder="至少 6 位" />
+            </label>
+            <p class="account-form-error" id="accountResetError" hidden></p>
+            <button class="primary-button account-submit" type="submit">更新密码</button>
+          </form>
+        </section>
+
+        <section class="account-stats" aria-label="学习统计和打卡">
+          <div class="account-streak-row">
+            <div class="account-streak">
+              <strong id="streakCount">0</strong>
+              <span>连续打卡（天）</span>
+            </div>
+            <button class="account-checkin" id="checkinButton" type="button" aria-pressed="false">今日打卡</button>
+          </div>
+          <p class="account-today" id="accountTodayCount">今天还没有学习记录</p>
+          <p class="account-stats-label">进度概览</p>
+          <div id="accountProgress"></div>
+          <div id="accountCalendar"></div>
+          <p class="account-rule">
+            打卡规则：当天点一次「今日打卡」，或标记进度、收藏、提交拼写、提交对战，都算打卡。只浏览词表不算。连续天数按本机日期计算；今天还没打卡时，先保留到昨天。
+          </p>
+        </section>
+      </section>
+    </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
@@ -903,7 +1005,10 @@
     </noscript>
 
     <script src="./words.js?v=20261105-1"></script>
-    <script src="./app.js?v=20261123-2"></script>
+    <script src="./cloud-config.js?v=20261124-1"></script>
+    <script src="./account-sync.js?v=20261123-5"></script>
+    <script src="./app.js?v=20261123-5"></script>
+    <script src="./account.js?v=20261123-5"></script>
     <script src="./update-check.js?v=20261123-3"></script>
     <script src="./update.js?v=20261123-3"></script>
   </body>
