@@ -110,21 +110,21 @@
 
 网页本身仍是仓库根目录的静态文件，GitHub Pages 直接发布根目录，不需要构建。安卓包用 [Capacitor](https://capacitorjs.com/) 把同一套页面装进 WebView，方便旁加载安装。应用名是「四级核心词」，包名 `com.lostlisa.cet4words`，最低 Android 8.0（API 24），默认竖屏。收藏和学习进度先写 WebView 的 `localStorage`。浏览器和安卓壳的本机存储仍然各存各的；登录同一个邮箱后，会按下面的规则合并到云端。
 
-当前调试包版本是 **1.4**（`versionCode` 5）。「遮住单词」和「遮住释义」固定在屏幕底部：手机上位于底部导航之上，桌面是底部一条练习条。发音和例句开关仍留在词表上方。1.0 在全面屏上会让状态栏和挖孔盖住页头。1.1 起，应用按系统上报的状态栏、挖孔、底部导航（手势条或三键）和键盘高度给 WebView 留边，不写死某一款手机的像素。网页端继续用 CSS `env(safe-area-inset-*)`；进到安卓应用后页面会带上 `native-safe-area`，这段 CSS 安全区改为 0，避免和原生边距叠成两层空白。1.2 起，只在安卓壳里检查 GitHub Releases，有更高的 `versionCode` 时才会用中文询问是否更新。1.4 增加可选的邮箱账号、云同步，以及学习统计和打卡。设置里看到的版本号是 1.4 就是这一个包。请直接覆盖安装，不要卸载，否则本机收藏和学习进度会丢。签名必须和 1.0 / 1.1 / 1.2 / 1.3 的调试证书相同。
+当前调试包版本是 **1.5**（`versionCode` 6）。「遮住单词」和「遮住释义」固定在屏幕底部：手机上位于底部导航之上，桌面是底部一条练习条。发音和例句开关仍留在词表上方。1.0 在全面屏上会让状态栏和挖孔盖住页头。1.1 起，应用按系统上报的状态栏、挖孔、底部导航（手势条或三键）和键盘高度给 WebView 留边，不写死某一款手机的像素。网页端继续用 CSS `env(safe-area-inset-*)`；进到安卓应用后页面会带上 `native-safe-area`，这段 CSS 安全区改为 0，避免和原生边距叠成两层空白。1.2 起，只在安卓壳里检查 GitHub Releases，有更高的 `versionCode` 时才会用中文询问是否更新。1.4 增加可选的邮箱账号、云同步，以及学习统计和打卡。1.5 把随机抽词收成两个选择：「记住」标为已掌握并自动抽下一个，「遗忘」标为模糊并自动抽下一个；直接关闭不写进度。设置里看到的版本号是 1.5 就是这一个包。请直接覆盖安装，不要卸载，否则本机收藏和学习进度会丢。签名必须和已经装上的包相同，证书 SHA-256 为 `e1561c355d570b2f260a61d01544c0b5845ca18cfb0a48e9867c62969dbdcef0`。
 
 ### 发布一个可被应用发现的版本
 
 应用不会看网页部署，只看这个仓库的 **正式 Release**（Draft 和 Pre-release 会忽略）。仓库里还没有 Release 时，打开应用不会出现更新提示。
 
-1. 用同一把调试证书打出 APK（`./gradlew assembleDebug` 使用的 `~/.android/debug.keystore`，证书 SHA-256 为 `fa511cf80921e2d958ca248165c9248468b5232753ab509fbfba27820fa86597`）。`versionCode` 必须比已安装的包更大，否则 Android 拒绝覆盖安装，应用也不会提示。
-2. 在 GitHub 上新建 Release。标签用 `v` 加 versionName，例如 `v1.5`。不要勾选 Pre-release。
+1. 用同一张调试证书打出 APK，证书 SHA-256 必须是 `e1561c355d570b2f260a61d01544c0b5845ca18cfb0a48e9867c62969dbdcef0`。新生成的 Android debug keystore 对不上，系统会拒绝覆盖安装。`versionCode` 必须比已安装的包更大，否则 Android 拒绝覆盖安装，应用也不会提示。
+2. 在 GitHub 上新建 Release。标签用 `v` 加 versionName，例如 `v1.6`。不要勾选 Pre-release。
 3. 把 APK 作为附件上传，文件名必须是：
 
 ```text
 cet4-words-<versionName>-<versionCode>.apk
 ```
 
-例如 versionName `1.5`、versionCode `6` 时，文件名是 `cet4-words-1.5-6.apk`。versionName 只允许 `1.2` 或 `1.2.3` 这种两段或三段数字。其他文件名会被忽略。当前安装包是 1.4（versionCode 5），下一版的 versionCode 必须大于 5。
+例如 versionName `1.6`、versionCode `7` 时，文件名是 `cet4-words-1.6-7.apk`。versionName 只允许 `1.2` 或 `1.2.3` 这种两段或三段数字。其他文件名会被忽略。当前安装包是 1.5（versionCode 6），下一版的 versionCode 必须大于 6。
 
 应用启动大约 1 秒后请求 `GET /repos/2817764844/NDKY-English-1000word/releases?per_page=30`。它在所有正式 Release 的附件里找出符合上面文件名、并且 `versionCode` 比当前安装包更大的 APK，选最大的一个。检查失败、已经是最新、或用户点过「稍后再说」的那个 versionCode，都不会弹窗。网页和桌面浏览器不跑这套流程。
 
