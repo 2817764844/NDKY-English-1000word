@@ -1,5 +1,6 @@
--- 在 MemFire 或 Supabase 的 SQL Editor 里整段执行一次。
--- 每个登录用户只有一行。anon key 可以放进网页；不要把 service_role 放进仓库。
+-- Supabase 邮箱密码登录（GoTrue + Postgres）用的学习数据表。
+-- 项目 https://sfairjuuslgvllzurkqx.supabase.co 已经执行过本文件。
+-- 不要再对其他项目执行。anon key 可以放进网页；不要把 service_role 放进仓库。
 
 create table if not exists public.study_state (
   user_id uuid primary key references auth.users (id) on delete cascade,

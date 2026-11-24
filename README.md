@@ -148,32 +148,27 @@ cd android
 
 账号是可选的。不登录时，词表、随机抽词、拼写、对战、收藏、进度、打卡和统计都可以用，数据写在这台设备的 `localStorage`。桌面右上角和手机底部导航都有「我的」。
 
-### 为什么用 MemFire / Supabase 的邮箱密码
+### 为什么用 Supabase 的邮箱密码
 
 页面发布在 GitHub Pages，安卓壳也只是同一个静态页，没有自带后端。用户在国内，不能做成只能走 Google 的登录。
 
-选用的是 **GoTrue 邮箱 + 密码**，再加上一行 Postgres 数据。国内优先用 [MemFire Cloud](https://cloud.memfiredb.com)：服务器在国内，接口和 Supabase 相同（`/auth/v1` 注册登录，`/rest/v1` 读写）。[Supabase](https://supabase.com) 可以原样替换 URL 和 anon key，但 `*.supabase.co` 在大陆时通时断，不适合作为默认。Firebase 即使用邮箱密码，请求仍走 Google 接口，国内更不稳定。LeanCloud 已停止新用户注册。腾讯云开发的邮箱登录是验证码，不是密码。
+云同步用的是自己的 [Supabase](https://supabase.com) 免费项目，区域 `ap-southeast-1`，注册不需要国内实名。认证是 GoTrue 的邮箱 + 密码（`/auth/v1`），学习数据是 Postgres 里每个用户一行（`/rest/v1/study_state`）。客户端只认 `cloud-config.js` 里的 URL 和 anon key，所以同一个页面也可以指向别的 GoTrue 兼容地址。Firebase 即使用邮箱密码，请求仍走 Google 接口。LeanCloud 已停止新用户注册。腾讯云开发的邮箱登录是验证码，不是密码。
+
+`*.supabase.co` 在大陆有时会不稳定。连不上时，进度、收藏和打卡仍留在本机，联网后再同步。
 
 客户端只保存 **anon public key**。它本来就可以出现在网页里。安全靠数据库的行级策略：每人只能读写自己的那一行。**不要**把 `service_role` 或服务账号密钥写进仓库。
 
-当前仓库里的 `cloud-config.js` 是空的。在填上项目 URL 和 anon key 之前，登录按钮会说明「云同步未配置」，不会假装已经登录成功。打卡和统计照常记在本机。
+`cloud-config.js` 已经填好这个项目的 URL 和 anon key。`study_state` 表和行级策略已经在该项目上执行过。`supabase/study_state.sql` 只是这份结构的记录，不要再对其他项目执行。
 
-### 配置步骤
+### 如果要换一个 Supabase 项目
 
-1. 打开 [MemFire Cloud](https://cloud.memfiredb.com)（或 Supabase）并创建一个应用。
-2. 在 SQL Editor 执行 `supabase/study_state.sql`。
-3. 在认证设置里打开邮箱密码登录。建议先关闭「注册后必须点邮件确认」，否则用户要先打开确认信才能登录。两种行为页面都能处理。
-4. 把站点 URL 设成 GitHub Pages 地址，并允许 `https://localhost`（安卓壳的页面来源）。忘记密码的邮件会回到这个地址。
-5. 复制 Project URL 和 **anon public** key，填进根目录的 `cloud-config.js`：
+当前仓库已经连着 `https://sfairjuuslgvllzurkqx.supabase.co`，平常不用再创建。只有换项目时才做下面这些事：
 
-```javascript
-window.CET4_CLOUD = {
-  url: "https://你的项目地址",
-  anonKey: "你的 anon public key",
-};
-```
-
-6. 把改过的 `cloud-config.js` 提交并发布。anon key 可以公开；`service_role` 留在控制台。云端地址使用 https。只有 `localhost` / `127.0.0.1` 允许 http，方便在本机试接口。
+1. 在 Supabase 新建项目，认证方式用邮箱和密码。
+2. 只在那个新项目的 SQL Editor 里执行一次 `supabase/study_state.sql`。
+3. 打开 Email 登录。建议关闭「注册后必须点邮件确认」，否则用户要先打开确认信才能登录。两种行为页面都能处理。
+4. 把 Site URL 设成 GitHub Pages 地址，并允许 `https://localhost`（安卓壳的页面来源）。忘记密码的邮件会回到这个地址。
+5. 把新的 Project URL 和 **anon public** key 写进 `cloud-config.js`。`service_role` 留在控制台。云端地址使用 https。只有 `localhost` / `127.0.0.1` 允许 http，方便在本机试接口。
 
 换设备登录同一个邮箱后，会拉下云端记录并和本机合并，再写回云端。离线时照常写本机，并打上待同步标记；联网或重新打开页面后自动再试。
 
