@@ -4117,6 +4117,81 @@ svg {
   background: var(--accent-soft);
 }
 
+.account-update {
+  margin-top: 14px;
+  padding: 12px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.account-update-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.account-update-label {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.account-version {
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.account-check-update {
+  flex: none;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  color: #ffffff;
+  background: var(--accent);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-check-update:hover:not(:disabled) {
+  background: var(--accent-dark);
+}
+
+.account-check-update:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.account-update-hint,
+.account-update-result {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.account-update-result.is-checking,
+.account-update-result.is-available {
+  color: var(--accent-dark);
+}
+
+.account-update-result.is-latest {
+  color: #275b45;
+}
+
+.account-update-result.is-failed {
+  color: #8c4518;
+}
+
+.account-update-result.is-web {
+  color: #6a4b16;
+}
+
 .account-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
